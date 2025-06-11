@@ -17,8 +17,10 @@ from ..types.series import Series
 from ..types.na import NA
 from ..types.plot import Plot
 from ..types.hline import HLine
+from ..types.alert import Alert
 from . import plot_style as _plot_style
 from . import hline_style as _hline_style
+from . import alert as _alert
 
 from . import syminfo  # This should be imported before core.datetime to avoid circular import!
 from . import barstate, string, log, math
@@ -42,6 +44,8 @@ __all__ = [
 
     'plot', 'plotchar', 'plotarrow', 'plotbar', 'plotcandle', 'plotshape', 'barcolor', 'bgcolor',
     'fill', 'hline',
+
+    'alert', 'alertcondition',
 
     'fixnan', 'nz',
 
@@ -295,6 +299,38 @@ def plotshape(*_, **__):
     ...
 
 
+### Alert ###
+
+# noinspection PyUnusedLocal
+def alert(message: str, freq: Alert = _alert.freq_once_per_bar):
+    """
+    Display alert message. Uses rich formatting if available, falls back to print.
+
+    :param message: Alert message to display
+    :param freq: Alert frequency (currently ignored)
+    """
+    try:
+        # Try to use typer for nice colored output
+        import typer
+        typer.secho(f"🚨 ALERT: {message}", fg=typer.colors.BRIGHT_YELLOW, bold=True)
+    except ImportError:
+        # Fallback to simple print
+        print(f"🚨 ALERT: {message}")
+
+
+def alertcondition(*_, **__):
+    """
+    Define alert condition. Currently implemented as no-op.
+
+    In the future this could be used to define alert conditions
+    that can be triggered based on boolean expressions.
+    """
+    if bar_index == 0:  # Only check if it is the first bar for performance reasons
+        # Check if it is called from the main function
+        if sys._getframe(1).f_code.co_name != 'main':  # noqa
+            raise RuntimeError("The alertcondition function can only be called from the main function!")
+
+
 ### Other ###
 
 __persistent_last_not_nan__: Any = NA(None)
@@ -340,15 +376,6 @@ def nz(source: Any, replacement: Any = 0) -> Any:
     if isinstance(source, NA):
         return replacement
     return source
-
-
-### Alert ###
-
-def alertcondition(*_, **__):
-    if bar_index == 0:  # Only check if it is the first bar for performance reasons
-        # Check if it is called from the main function
-        if sys._getframe(1).f_code.co_name != 'main':  # noqa
-            raise RuntimeError("The alertcondition function can only be called from the main function!")
 
 
 #
