@@ -26,7 +26,6 @@ pi = math.pi
 phi = (1 + math.sqrt(5)) / 2
 rphi = 1 / phi
 
-
 __persistent_function_vars__ = {}
 __series_function_vars__ = {}
 
@@ -246,7 +245,6 @@ def round(number: TFI | NA[TFI], precision: int | NA[int] = NA(int)) -> float | 
     """
     if isinstance(number, NA):
         return NA(float)
-    print(f"number: {number}, precision: {precision}")
     if isinstance(precision, NA):
         return builtins.round(number)
     return builtins.round(number, precision)

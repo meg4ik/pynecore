@@ -140,7 +140,7 @@ class ScriptRunner:
         self.tz = _parse_timezone(syminfo.timezone)
 
         self.plot_writer = CSVWriter(
-            plot_path, float_fmt=f".{self.script.precision or 8}g"
+            plot_path, float_fmt=f".8g"
         ) if plot_path else None
         self.strat_writer = CSVWriter(strat_path) if strat_path else None
         self.equity_writer = CSVWriter(equity_path, headers=(

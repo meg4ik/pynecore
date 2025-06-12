@@ -583,9 +583,10 @@ def highest(source: Series[float], length: int, _bars: bool = False, _tuple: boo
     if last_max_index >= length:
         last_max = source
         last_max_index = 0
-        for i in builtins.range(length - 1, 0, -1):
-            if source[i] > last_max:
-                last_max = source[i]
+        for i in builtins.range(1, length):
+            s = source[i]
+            if s >= last_max:
+                last_max = s
                 last_max_index = i
 
     max_index = last_max_index
@@ -780,9 +781,9 @@ def lowest(source: Series[float], length: int,
     if last_min_index >= length:
         last_min = source
         last_min_index = 0
-        for i in builtins.range(length - 1, 0, -1):
+        for i in builtins.range(1, length):
             s = source[i]
-            if s < last_min:
+            if s <= last_min:
                 last_min = s
                 last_min_index = i
 
