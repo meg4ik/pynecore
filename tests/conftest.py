@@ -302,14 +302,18 @@ def runner(script_path, module_key, syminfo) -> RunnerProtocol:
 
         # Reload fast_overload to drop its registry
         reload(sys.modules['pynecore.core.overload'])
+
         # Reload all pynecore.types modules, to reset auto-incremented enums
-        for name in list(sys.modules.keys()):
-            if name.startswith('pynecore.types') and name != 'pynecore.types.na':
+        for name in sorted(list(sys.modules.keys())):
+            if name.startswith('pynecore.types') and name != 'pynecore.types' and name != 'pynecore.types.na':
                 reload(sys.modules[name])
+        reload(sys.modules['pynecore.types'])
+
         # Reload all pynecore.lib modules
-        for name in list(sys.modules.keys()):
-            if name.startswith('pynecore.lib'):
+        for name in sorted(list(sys.modules.keys())):
+            if name.startswith('pynecore.lib') and name != 'pynecore.lib':
                 reload(sys.modules[name])
+        reload(sys.modules['pynecore.lib'])
 
         return r
 
