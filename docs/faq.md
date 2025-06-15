@@ -204,6 +204,24 @@ PyneCore is designed for high performance while maintaining the intuitive bar-by
 
 Yes! One of the main advantages of PyneCore is the ability to leverage the vast Python ecosystem. You can import and use any Python library in your PyneCore scripts. This allows you to combine technical analysis with data science, machine learning, and more.
 
+### Why doesn't division by zero raise an exception in PyneCore?
+
+PyneCore automatically handles division by zero to match Pine Script behavior. When you write:
+
+```python
+result = numerator / denominator
+```
+
+PyneCore's AST transformation system converts this to:
+
+```python
+result = safe_convert.safe_div(numerator, denominator)
+```
+
+This function returns `NA(float)` instead of raising a `ZeroDivisionError` when the denominator is zero or NA, which matches how Pine Script handles division by zero. This transformation only applies to dynamic divisions (not literal values like `1/2`), ensuring both Pine Script compatibility and optimal performance.
+
+This is part of PyneCore's "it just works" philosophy - your Pine Script logic will behave exactly as expected without requiring explicit error handling for common edge cases.
+
 ## Troubleshooting
 
 ### My script isn't being recognized as a PyneCore script

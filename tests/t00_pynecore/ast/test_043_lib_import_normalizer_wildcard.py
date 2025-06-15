@@ -6,7 +6,7 @@ from pynecore.lib.ta import *
 
 
 def main():
-    print(close, hl2, sma)
+    print(close, hl2, sma(close, 12))
 
 
 def __test_import_normalizer_wildcard__(ast_transformed_code, file_reader, log):

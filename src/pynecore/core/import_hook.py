@@ -1,7 +1,6 @@
 from typing import cast
 import os
 import sys
-import ast
 import importlib.util
 import importlib.machinery
 import re
@@ -36,6 +35,8 @@ class PyneLoader(importlib.machinery.SourceFileLoader):
             # No @pyne decorator, let Python handle it normally
             return compile(data, path, 'exec', optimize=_optimize)
 
+        import ast
+
         # Parse AST only if @pyne is present
         tree = ast.parse(data_str)
 
@@ -65,17 +66,19 @@ class PyneLoader(importlib.machinery.SourceFileLoader):
             from pynecore.transformers.persistent import PersistentTransformer
             from pynecore.transformers.input_transformer import InputTransformer
             from pynecore.transformers.safe_convert_transformer import SafeConvertTransformer
+            from pynecore.transformers.safe_division_transformer import SafeDivisionTransformer
 
             transformed = ImportLifterTransformer().visit(transformed)
             transformed = ImportNormalizerTransformer().visit(transformed)
             transformed = PersistentSeriesTransformer().visit(transformed)
             transformed = LibrarySeriesTransformer().visit(transformed)
-            transformed = FunctionIsolationTransformer().visit(transformed)
             transformed = ModulePropertyTransformer().visit(transformed)
+            transformed = FunctionIsolationTransformer().visit(transformed)
             transformed = SeriesTransformer().visit(transformed)
             transformed = PersistentTransformer().visit(transformed)
             transformed = InputTransformer().visit(transformed)
             transformed = SafeConvertTransformer().visit(transformed)
+            transformed = SafeDivisionTransformer().visit(transformed)
 
             ast.fix_missing_locations(transformed)
 
@@ -139,7 +142,7 @@ class PyneImportHook:
                         marker_path = cache_dir / f'{pyc_name}.pyne'
 
                         need_recompile = False
-                        
+
                         if pyc_path.exists():
                             if not marker_path.exists():
                                 # No marker - definitely need recompile
@@ -155,7 +158,7 @@ class PyneImportHook:
                                 except (OSError, ValueError):
                                     # Can't read marker or invalid content - need recompile
                                     need_recompile = True
-                        
+
                         if need_recompile:
                             # Force recompile by removing the old bytecode
                             try:

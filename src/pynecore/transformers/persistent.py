@@ -94,6 +94,11 @@ class PersistentTransformer(ast.NodeTransformer):
 
             for var_name, global_name in vars_dict.items():
                 function_vars.append(global_name)
+                
+                # Add Kahan compensation variable if it exists
+                kahan_compensation = f"{global_name}_kahan_c__"
+                if kahan_compensation in self.modified_vars.get(scope, set()):
+                    function_vars.append(kahan_compensation)
 
             # Add initialization flags that actually exist
             if scope in self.initialized_flags:
@@ -538,8 +543,8 @@ class PersistentTransformer(ast.NodeTransformer):
         node.value = self.visit(cast(ast.AST, node.value))
         return node
 
-    def visit_AugAssign(self, node: ast.AugAssign) -> ast.AugAssign:
-        """Handle augmented assignments (+=, *=, etc.)"""
+    def visit_AugAssign(self, node: ast.AugAssign) -> ast.AugAssign | ast.AST:
+        """Handle augmented assignments (+=, *=, etc.) with Kahan summation for += on floats"""
         if isinstance(node.target, ast.Name):
             var_name = node.target.id
             global_name = self._get_scope_persistents(var_name)
@@ -549,7 +554,86 @@ class PersistentTransformer(ast.NodeTransformer):
                 self.modified_vars.setdefault(self.current_scope, set())
                 self.modified_vars[self.current_scope].add(global_name)
 
-                # Replace with the global name
+                # Check if this is += operation and not with a literal
+                if isinstance(node.op, ast.Add) and not self._is_literal_or_na(node.value):
+                    # Generate compensation variable name
+                    compensation_var = f"{global_name}_kahan_c__"
+                    
+                    # Add compensation variable to module level if not already there
+                    if compensation_var not in [assign.targets[0].id for assign in self.module_level_assigns 
+                                               if isinstance(assign, ast.Assign) and len(assign.targets) == 1 
+                                               and isinstance(assign.targets[0], ast.Name)]:
+                        self.module_level_assigns.append(
+                            ast.Assign(
+                                targets=[ast.Name(id=compensation_var, ctx=ast.Store())],
+                                value=ast.Constant(value=0.0)
+                            )
+                        )
+                    
+                    # Mark compensation variable as modified
+                    self.modified_vars[self.current_scope].add(compensation_var)
+                    
+                    # Transform the value
+                    transformed_value = self.visit(cast(ast.AST, node.value))
+                    
+                    # Create Kahan summation sequence using walrus operator
+                    # We'll use a single expression with tuple unpacking
+                    # (corrected := value - compensation, 
+                    #  new_sum := var + corrected,
+                    #  compensation := (new_sum - var) - corrected,
+                    #  var := new_sum)[-1]
+                    
+                    # Create the Kahan summation expression
+                    kahan_expr = ast.Subscript(
+                        value=ast.Tuple(
+                            elts=[
+                                # First: corrected := value - compensation
+                                ast.NamedExpr(
+                                    target=ast.Name(id='__kahan_corrected__', ctx=ast.Store()),
+                                    value=ast.BinOp(
+                                        left=transformed_value,
+                                        op=ast.Sub(),
+                                        right=ast.Name(id=compensation_var, ctx=ast.Load())
+                                    )
+                                ),
+                                # Second: new_sum := var + corrected
+                                ast.NamedExpr(
+                                    target=ast.Name(id='__kahan_new_sum__', ctx=ast.Store()),
+                                    value=ast.BinOp(
+                                        left=ast.Name(id=global_name, ctx=ast.Load()),
+                                        op=ast.Add(),
+                                        right=ast.Name(id='__kahan_corrected__', ctx=ast.Load())
+                                    )
+                                ),
+                                # Third: compensation := (new_sum - var) - corrected
+                                ast.NamedExpr(
+                                    target=ast.Name(id=compensation_var, ctx=ast.Store()),
+                                    value=ast.BinOp(
+                                        left=ast.BinOp(
+                                            left=ast.Name(id='__kahan_new_sum__', ctx=ast.Load()),
+                                            op=ast.Sub(),
+                                            right=ast.Name(id=global_name, ctx=ast.Load())
+                                        ),
+                                        op=ast.Sub(),
+                                        right=ast.Name(id='__kahan_corrected__', ctx=ast.Load())
+                                    )
+                                ),
+                                # Fourth: var := new_sum
+                                ast.NamedExpr(
+                                    target=ast.Name(id=global_name, ctx=ast.Store()),
+                                    value=ast.Name(id='__kahan_new_sum__', ctx=ast.Load())
+                                )
+                            ],
+                            ctx=ast.Load()
+                        ),
+                        slice=ast.UnaryOp(op=ast.USub(), operand=ast.Constant(value=1)),
+                        ctx=ast.Load()
+                    )
+                    
+                    # Return as an expression statement
+                    return ast.Expr(value=kahan_expr)
+
+                # For other augmented assignments or += with literals, keep the original behavior
                 node.target = ast.Name(id=global_name, ctx=ast.Store())
                 node.value = self.visit(cast(ast.AST, node.value))
                 return node

@@ -93,14 +93,14 @@ app_state = AppState()
 def _get_pine_tree_art():
     """Returns the colorized pine tree ASCII art as a list of strings."""
     return [
-        "           [dark_green] █ [/]               ",
-        "           [blue on dark_green]   [/]             ",
-        "         [blue on dark_green] ▄▄▄▄  [/]           ",
-        "       [blue on dark_green]  █▄████[/][yellow on dark_green]▄▄ [/]         ",
-        "     [blue on dark_green]  ▄▇▇▇▇▇██[/][dark_green on yellow]   [/][yellow on dark_green]  [/]       ",
-        "   [blue on dark_green]    ███[/][dark_green on yellow]  ▁▁▁▁▁▄[/][yellow on dark_green]    [/]     ",
-        " [blue on dark_green]       ▀▀[/][dark_green on yellow]    ▄ [/][yellow on dark_green]        [/]   ",
-        "         [yellow on dark_green]  ▀▀▀▀ [/]              "
+        "           [dark_green] █ [/]              ",
+        "           [blue on dark_green]   [/]            ",
+        "         [blue on dark_green] ▄▄▄▄  [/]          ",
+        "       [blue on dark_green]  █▄████[/][yellow on dark_green]▄▄ [/]        ",
+        "     [blue on dark_green]  ▄▇▇▇▇▇██[/][dark_green on yellow]   [/][yellow on dark_green]  [/]      ",
+        "   [blue on dark_green]    ███[/][dark_green on yellow]  ▁▁▁▁▁▄[/][yellow on dark_green]    [/]    ",
+        " [blue on dark_green]       ▀▀[/][dark_green on yellow]    ▄ [/][yellow on dark_green]        [/]  ",
+        "         [yellow on dark_green]  ▀▀▀▀ [/]             "
     ]
 
 
@@ -112,7 +112,7 @@ def _get_base_text_art():
         " | |_) | | | | '_ \\ / _ \\",
         " |  __/| |_| | | | |  __/",
         " |_|    \\__, |_| |_|\\___|",
-        "        |___/"
+        "        |___/       Core™"
     ]
 
 

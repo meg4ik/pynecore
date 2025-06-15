@@ -18,10 +18,9 @@ from ..types.na import NA
 from ..types.plot import Plot
 from ..types.hline import HLine
 from ..types.alert import Alert
-from . import plot_style as _plot_style
-from . import hline_style as _hline_style
-from . import alert as _alert
-
+from . import _plot
+from . import _hline
+from . import _alert
 from . import syminfo  # This should be imported before core.datetime to avoid circular import!
 from . import barstate, string, log, math
 
@@ -204,11 +203,10 @@ def fill(*_, **__):
     ...
 
 
-class _HLine:
-    # Shortcuts to hline styles for Pine Script compatibility
-    style_solid = _hline_style.style_solid
-    style_dotted = _hline_style.style_dotted
-    style_dashed = _hline_style.style_dashed
+class _HLine(_hline.HLineConstants):
+    """
+    Simulates `hline` namespace and function of Pine Script
+    """
 
     def __call__(self, price: Any, title: str | None = None, color: Any = None,
                  linestyle: Any = None, linewidth: int = 1, *_, **__) -> HLine:
@@ -229,18 +227,10 @@ class _HLine:
 hline = _HLine()
 
 
-class _Plot:
-    # Shortcuts to plot styles for Pine Script compatibility
-    style_area = _plot_style.style_area
-    style_areabr = _plot_style.style_areabr
-    style_circles = _plot_style.style_circles
-    style_columns = _plot_style.style_columns
-    style_cross = _plot_style.style_cross
-    style_histogram = _plot_style.style_histogram
-    style_line = _plot_style.style_line
-    style_linebr = _plot_style.style_linebr
-    style_stepline = _plot_style.style_stepline
-    style_stepline_diamond = _plot_style.style_stepline_diamond
+class _Plot(_plot.PlotConstant):
+    """
+    Simulates `plot` namespace of Pine Script
+    """
 
     def __call__(self, series: Any, title: str | None = None, *_, **__) -> Plot:
         """
@@ -301,21 +291,25 @@ def plotshape(*_, **__):
 
 ### Alert ###
 
-# noinspection PyUnusedLocal
-def alert(message: str, freq: Alert = _alert.freq_once_per_bar):
-    """
-    Display alert message. Uses rich formatting if available, falls back to print.
+class _Alert(_alert.AlertConstants):
 
-    :param message: Alert message to display
-    :param freq: Alert frequency (currently ignored)
-    """
-    try:
-        # Try to use typer for nice colored output
-        import typer
-        typer.secho(f"🚨 ALERT: {message}", fg=typer.colors.BRIGHT_YELLOW, bold=True)
-    except ImportError:
-        # Fallback to simple print
-        print(f"🚨 ALERT: {message}")
+    def __call__(self, message: str, freq: Alert = _alert.AlertConstants.freq_once_per_bar):
+        """
+            Display alert message. Uses rich formatting if available, falls back to print.
+
+            :param message: Alert message to display
+            :param freq: Alert frequency (currently ignored)
+            """
+        try:
+            # Try to use typer for nice colored output
+            import typer
+            typer.secho(f"🚨 ALERT: {message}", fg=typer.colors.BRIGHT_YELLOW, bold=True)
+        except ImportError:
+            # Fallback to simple print
+            print(f"🚨 ALERT: {message}")
+
+
+alert = _Alert()
 
 
 def alertcondition(*_, **__):

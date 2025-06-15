@@ -39,6 +39,8 @@ PyneCore applies several key transformations to Python code to make it behave li
 7. **Series Transformer** - Handles Series variables
 8. **Persistent Transformer** - Manages persistent variables
 9. **Input Transformer** - Processes input parameters
+10. **Safe Convert Transformer** - Converts float()/int() calls to safe versions
+11. **Safe Division Transformer** - Protects against division by zero
 
 This order ensures that dependencies between transformations are properly handled. For example, PersistentSeries transformation must happen before both Persistent and Series transformations
 
@@ -303,6 +305,57 @@ Key aspects:
 - Enables proper input parameter resolution
 - Handles source inputs specially
 
+### Safe Convert Transformer
+
+The Safe Convert transformer replaces float() and int() calls with safe versions that handle NA values properly.
+
+**Original code:**
+```python
+value = float(some_value)
+number = int(another_value)
+```
+
+**Transformed code:**
+```python
+from pynecore.core import safe_convert
+
+value = safe_convert.safe_float(some_value)
+number = safe_convert.safe_int(another_value)
+```
+
+Key aspects:
+- Converts float() and int() to safe_float() and safe_int()
+- Returns NA(float) or NA(int) when TypeError occurs (e.g., from NA inputs)
+- Maintains Pine Script semantics for type conversions
+- Only adds import if conversion functions are actually used
+
+### Safe Division Transformer
+
+The Safe Division transformer converts division operations to safe alternatives that handle division by zero like Pine Script.
+
+**Original code:**
+```python
+result = (close - open_) / (high - low)
+ratio = value / divisor
+constant = 1 / 2  # Literal division remains unchanged
+```
+
+**Transformed code:**
+```python
+from pynecore.core import safe_convert
+
+result = safe_convert.safe_div(close - open_, high - low)
+ratio = safe_convert.safe_div(value, divisor)
+constant = 1 / 2  # Literal divisions are not transformed
+```
+
+Key aspects:
+- Converts division operations (/) to safe_div() calls
+- Returns NA(float) instead of raising ZeroDivisionError
+- Literal divisions (e.g., 1/2) remain unchanged for performance
+- Matches Pine Script behavior where division by zero returns NA
+- Only adds import if division operations are actually transformed
+
 
 ## Example of Complete Transformation
 
@@ -315,7 +368,7 @@ Let's see a full example of how a simple Pyne code is transformed:
 """
 from pynecore import Series, Persistent
 from pynecore.lib.ta import sma
-from pynecore.lib import close, plot
+from pynecore.lib import close, open_, high, low, plot
 
 def main():
     # Persistent counter
@@ -324,10 +377,14 @@ def main():
 
     # Moving average calculation
     ma: Series[float] = sma(close, 14)
+    
+    # Safe division that could cause division by zero
+    range_ratio = (close - open_) / (high - low)
 
     # Plot results
     plot(ma, "MA", color=lib.color.blue)
     plot(count, "Count", color=lib.color.red)
+    plot(range_ratio, "Range Ratio", color=lib.color.green)
 ```
 
 **Transformed Code:**
@@ -339,15 +396,17 @@ from pynecore import lib
 import pynecore.lib.ta
 from pynecore.core.series import SeriesImpl
 from pynecore.core.function_isolation import isolate_function
+from pynecore.core import safe_convert
 
 # Global variables and scope ID
 __scope_id__ = "8af7c21e_example.py"
 __persistent_main_count__ = 0
 __series_main_ma__ = SeriesImpl()
+__series_main_range_ratio__ = SeriesImpl()
 
 # Function and variable registries
 __persistent_function_vars__ = {'main': ['__persistent_main_count__']}
-__series_function_vars__ = {'main': ['__series_main_ma__']}
+__series_function_vars__ = {'main': ['__series_main_ma__', '__series_main_range_ratio__']}
 
 def main():
     global __scope_id__
@@ -358,10 +417,14 @@ def main():
 
     # Moving average calculation
     ma = __series_main_ma__.add(isolate_function(lib.ta.sma, "main|lib.ta.sma|0", __scope_id__)(lib.close, 14))
+    
+    # Safe division that could cause division by zero
+    range_ratio = __series_main_range_ratio__.add(safe_convert.safe_div(lib.close - lib.open_, lib.high - lib.low))
 
     # Plot results
     lib.plot(ma, "MA", color=lib.color.blue)
     lib.plot(__persistent_main_count__, "Count", color=lib.color.red)
+    lib.plot(range_ratio, "Range Ratio", color=lib.color.green)
 ```
 
 This example demonstrates how the different transformers work together to convert a simple Pyne script into equivalent Python code that provides Pine Script-like behavior through PyneCore's runtime system.

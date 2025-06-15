@@ -1,6 +1,25 @@
 from ..types import NA
 
 
+def safe_div(a, b):
+    """
+    Safe division that returns NA for division by zero.
+    Mimics Pine Script behavior where division by zero returns NA.
+
+    @param a: The numerator.
+    @param b: The denominator.
+    @return: The division result, or NA(float) if b is zero or NA.
+    """
+    if b == 0 or b == 0.0:
+        return NA(float)
+    if a is NA() or b is NA():
+        return NA(float)
+    try:
+        return a / b
+    except (ZeroDivisionError, TypeError):
+        return NA(float)
+
+
 def safe_float(value):
     """
     Safe float conversion that returns NA for NA inputs.

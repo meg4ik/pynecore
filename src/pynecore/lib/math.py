@@ -303,20 +303,23 @@ def sqrt(number: float | int | NA) -> float | NA[float]:
 __series_summ_source__: _SeriesImpl[float | NA[float]] = _SeriesImpl()
 __persistent_summ_summ__: float = 0.0
 __persistent_summ_count__: int = 0
-__persistent_function_vars__['sum'] = ['__persistent_summ_summ__', '__persistent_summ_count__']
+__persistent_summ_compensation__: float = 0.0
+__persistent_function_vars__['sum'] = [
+    '__persistent_summ_summ__', '__persistent_summ_count__', '__persistent_summ_compensation__'
+]
 __series_function_vars__['sum'] = ['__series_summ_source__']
 
 
 # noinspection PyShadowingBuiltins
 def sum(source: Series[TFI | NA[TFI]], length: int) -> float | NA[float] | Series[TFI | NA[TFI]]:
     """
-    Returns the sum of a series over a specified length.
+    Returns the sum of a series over a specified length using Kahan summation.
 
     :param source: Source series
     :param length: Length of the sum
     :return: The sliding sum of the series
     """
-    global __series_summ_source__, __persistent_summ_summ__, __persistent_summ_count__
+    global __series_summ_source__, __persistent_summ_summ__, __persistent_summ_count__, __persistent_summ_compensation__
 
     if length == 1:  # Shortcut
         return source
@@ -329,7 +332,11 @@ def sum(source: Series[TFI | NA[TFI]], length: int) -> float | NA[float] | Serie
     if __persistent_summ_count__ < length - 1:
         if not isna:
             __persistent_summ_count__ += 1
-            __persistent_summ_summ__ += source
+            # Kahan summation for adding new value
+            corrected_value = float(source) - __persistent_summ_compensation__
+            new_sum = __persistent_summ_summ__ + corrected_value
+            __persistent_summ_compensation__ = (new_sum - __persistent_summ_summ__) - corrected_value
+            __persistent_summ_summ__ = new_sum
         return NA(float)
     elif __persistent_summ_count__ == length - 1:
         if isna:
@@ -338,9 +345,18 @@ def sum(source: Series[TFI | NA[TFI]], length: int) -> float | NA[float] | Serie
     else:
         if isna:
             return __persistent_summ_summ__
-        __persistent_summ_summ__ -= safe_convert.safe_float(__series_summ_source__[length])
+        # Kahan summation for removing old value
+        old_value = safe_convert.safe_float(__series_summ_source__[length])
+        corrected_old = -old_value - __persistent_summ_compensation__
+        new_sum = __persistent_summ_summ__ + corrected_old
+        __persistent_summ_compensation__ = (new_sum - __persistent_summ_summ__) - corrected_old
+        __persistent_summ_summ__ = new_sum
 
-    __persistent_summ_summ__ += source
+    # Kahan summation for adding new value
+    corrected_value = float(source) - __persistent_summ_compensation__
+    new_sum = __persistent_summ_summ__ + corrected_value
+    __persistent_summ_compensation__ = (new_sum - __persistent_summ_summ__) - corrected_value
+    __persistent_summ_summ__ = new_sum
 
     return __persistent_summ_summ__
 

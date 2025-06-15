@@ -16,7 +16,7 @@ from pynecore.core.overload import overload
 from ..core import safe_convert
 
 # We need to use this kind of import to make transformer work
-from pynecore.lib import open, high, low, close, volume, bar_index, array, session, math as lib_math
+from pynecore.lib import open, high, low, close, volume, bar_index, array, session, math as lib_math, syminfo
 
 TFIB = TypeVar('TFIB', float, int, bool)
 TFI = TypeVar('TFI', float, int)
@@ -132,14 +132,12 @@ def accdist() -> float | NA[float]:
 
     :return: Accumulation/Distribution index
     """
-    try:
-        mfm = ((close - low) - (high - close)) / (high - low)
-    except ZeroDivisionError:
-        return NA(float)
-
-    mfv = mfm * volume
     ad: Persistent[float] = 0.0
-    ad += mfv
+
+    mfm = ((close - low) - (high - close)) / (high - low)
+    mfv = mfm * volume
+    if not isinstance(mfv, NA):
+        ad += mfv
 
     return ad
 
@@ -175,7 +173,7 @@ def alma(source: Series[float], length: int, offset: float = 0.85, sigma: float 
     if not weights:
         m = offset * (length - 1) if not floor else math.floor(offset * (length - 1))
         s = length / sigma
-        weights = [math.exp(-1 * ((i - m) ** 2) / (2 * s ** 2)) for i in builtins.range(length)]
+        weights = [math.exp(-1 * ((i - m) * (i - m)) / (2 * s * s)) for i in builtins.range(length)]
         weights.reverse()  # This is faster then using backward range or index subtraction
         norm = sum(weights)
 
@@ -228,8 +226,14 @@ def bb(source: float, length: int, mult: float | int) -> tuple[float | NA[float]
     """
     assert length > 0, "Invalid length, length must be greater than 0!"
     assert mult > 0, "Invalid multiplier, multiplier must be greater than 0!"
-    middle = sma(source, length)
+
     std_dev = stdev(source, length)
+
+    # Round to mintick precision - strange, but this is how TradingView does it
+    scaled = round(source * syminfo.pricescale)
+    source = scaled / syminfo.pricescale
+    middle = sma(source, length)
+
     if isinstance(middle, NA):
         return NA(float), NA(float), NA(float)
     std_dev *= mult
@@ -279,7 +283,12 @@ def change(source: Series[TFIB], length: int = 1) -> TFIB | NA[TFIB]:
     if isinstance(source, NA) or isinstance(prev_val, NA):
         return NA(cast(type[TFIB], type(source)))  # type: ignore
     if isinstance(source, (float, int)):
-        return cast(TFIB, source - prev_val)
+        diff = source - prev_val
+        if isinstance(syminfo.mintick, NA):
+            return cast(TFIB, diff)
+        # Round to mintick precision - strange, but this is how TradingView does it
+        diff = round(diff * syminfo.pricescale) / syminfo.pricescale
+        return cast(TFIB, diff)
     return source != prev_val
 
 
@@ -291,7 +300,9 @@ def cmo(source: float, length: int) -> float | NA:
     :param length: The length of the CMO
     :return: The Chande Momentum Oscillator (CMO) of the source series
     """
-    momentum = change(source)
+    last_source: Persistent = NA(float)
+    momentum = source - last_source
+    last_source = source  # noqa
     if isinstance(momentum, NA):
         return NA(float)
     sum1 = lib_math.sum(momentum if momentum >= 0.0 else 0.0, length)
@@ -484,8 +495,12 @@ def dmi(diLength: int, adxSmoothing: int) -> tuple[float | NA, float | NA, float
     """
     assert diLength > 0, "Invalid DI length, DI length must be greater than 0!"
     assert adxSmoothing > 0, "Invalid ADX smoothing, ADX smoothing must be greater than 0!"
-    up = change(high)
-    down = -change(low)
+    last_high: Persistent[float] = NA(float)
+    last_low: Persistent[float] = NA(float)
+    up = high - last_high
+    down = last_low - low
+    last_high = high  # noqa
+    last_low = low  # noqa
     if isinstance(up, NA) or isinstance(down, NA):
         return NA(float), NA(float), NA(float)
     a = atr(diLength)
@@ -934,7 +949,9 @@ def mfi(source: float, length: int) -> float | NA[float]:
     assert length > 0, "Invalid length, length must be greater than 0!"
     if isinstance(source, NA):
         return NA(float)
-    chg = change(source)
+    last_source: Persistent = NA(float)
+    chg = source - last_source
+    last_source = source  # noqa
     upper = lib_math.sum(volume * (0.0 if chg is not NA(float) and chg <= 0 else source), length)
     lower = lib_math.sum(volume * (0.0 if chg is not NA(float) and chg >= 0 else source), length)
     if isinstance(upper, NA) or isinstance(lower, NA):
@@ -1041,7 +1058,9 @@ def obv() -> float | NA[float]:
 
     :return: On Balance Volume
     """
-    chg = change(close)
+    last_close: Persistent[float] = NA(float)
+    chg = close - last_close
+    last_close = close  # noqa
     if isinstance(chg, NA):
         return NA(float)
     if chg > 0:
@@ -1206,9 +1225,8 @@ def pvi() -> float | NA[float] | Series[float]:
     prev_volume: Persistent[float] = 0.0
     prev_pvi: Persistent[float] = 1.0
 
-    try:
-        _pvi = prev_pvi + ((close - prev_close) / prev_close) * prev_pvi if volume > prev_volume else prev_pvi
-    except ZeroDivisionError:
+    _pvi = prev_pvi + ((close - prev_close) / prev_close) * prev_pvi if volume > prev_volume else prev_pvi
+    if isinstance(_pvi, NA):
         _pvi = prev_pvi
 
     prev_close = close
@@ -1283,13 +1301,10 @@ def rci(source: Series[float], length: int) -> float | NA[float]:
         sum_y2 += y * y
 
     # Calculate correlation coefficient
-    try:
-        n = length
-        numerator = n * sum_xy - sum_x * sum_y
-        denominator = math.sqrt((n * sum_x2 - sum_x * sum_x) * (n * sum_y2 - sum_y * sum_y))
-        return (numerator / denominator) * 100
-    except (ZeroDivisionError, ValueError):
-        return NA(float)
+    n = length
+    numerator = n * sum_xy - sum_x * sum_y
+    denominator = math.sqrt((n * sum_x2 - sum_x * sum_x) * (n * sum_y2 - sum_y * sum_y))
+    return (numerator / denominator) * 100
 
 
 # noinspection PyUnusedLocal
@@ -1348,10 +1363,7 @@ def roc(source: Series[float], length: int) -> float | NA[float]:
     if isinstance(prev_val, NA):
         return NA(float)
 
-    try:
-        return 100 * chg / prev_val
-    except ZeroDivisionError:
-        return NA(float)
+    return 100 * chg / prev_val
 
 
 # noinspection PyUnusedLocal
@@ -1367,6 +1379,10 @@ def rsi(source: float, length: int) -> float | NA[float]:
     if isinstance(source, NA):
         return NA(float)
 
+    # Round to mintick precision - strange, but this is how TradingView does it
+    scaled = round(source * syminfo.pricescale)
+    source = scaled / syminfo.pricescale
+
     prev_src: Persistent[float | NA[float]] = NA(float)
     if isinstance(prev_src, NA):
         prev_src = source
@@ -1376,10 +1392,7 @@ def rsi(source: float, length: int) -> float | NA[float]:
     rma_d = rma(builtins.max(prev_src - source, 0.0), length)
     prev_src = source
 
-    try:
-        return 100 - 100 / (1 + rma_u / rma_d)
-    except ZeroDivisionError:
-        return NA(float)
+    return 100 - 100 / (1 + rma_u / rma_d)
 
 
 # noinspection PyShadowingBuiltins,PyUnusedLocal,PyShadowingNames
@@ -1455,7 +1468,7 @@ def sar(start: float = 0.02, inc: float = 0.02, max: float = 0.2) -> float | NA[
     return cast(float | NA[float], sar_val)
 
 
-def sma(source: float, length: int) -> float | NA[float]:
+def sma(source: Series[float], length: int) -> float | NA[float]:
     """
     Calculate Simple Moving Average (SMA)
 
@@ -1475,8 +1488,10 @@ def stdev(source: float, length: int, biased=True) -> float | NA[float]:
     :param biased: Specifies whether the biased or unbiased standard deviation is calculated
     :return: The standard deviation of the source series
     """
-    var = variance(source, length, biased)
-    return math.sqrt(var) if not isinstance(var, NA) else NA(float)
+    try:
+        return math.sqrt(variance(source, length, biased))
+    except TypeError:
+        return NA(float)
 
 
 # noinspection PyShadowingNames
@@ -1508,11 +1523,8 @@ def stoch(source: float | Series[float], high: float | Series[float], low: float
     if dl_diff < 0.0:
         k = 0.0
     else:
-        try:
-            k = (100 * dl_diff / hl_diff) if hl_diff != 0.0 else 100.0
-            k = 100.0 if k > 100.0 else 0.0 if k < 0.0 else k
-        except ZeroDivisionError:  # I don't think this is possible
-            k = NA(float)
+        k = (100 * dl_diff / hl_diff) if hl_diff != 0.0 else 100.0
+        k = 100.0 if k > 100.0 else 0.0 if k < 0.0 else k
     return k  # type: ignore
 
 
@@ -1640,7 +1652,9 @@ def tsi(source: Series[float], short_length: int, long_length: int) -> float | N
         return NA(float)
 
     # Calculate momentum
-    momentum = change(source)
+    last_source: Persistent = NA(float)
+    momentum = source - last_source
+    last_source = source  # noqa
     if isinstance(momentum, NA):
         return NA(float)
 
@@ -1661,13 +1675,18 @@ def tsi(source: Series[float], short_length: int, long_length: int) -> float | N
     return tsi_value / abs_value
 
 
-def variance(source: Series[float], length: int, biased: bool = True) -> float | NA[float]:
+def variance(source: Series[float],
+             length: int,
+             biased: bool = True,
+             _reset_kahan_interval: int = 10) -> float | NA[float]:
     """
-    Calculate the rolling variance of the source series without using a loop.
+    Calculate the rolling variance of the source series.
 
     :param source: The source series.
     :param length: The length of the rolling window.
     :param biased: If True, calculates biased variance; otherwise, calculates unbiased variance.
+    :param _reset_kahan_interval: The interval at which to reset the Kahan summation, if negative it
+                                  is set to (-length * _reset_kahan_interval)
     :return: The variance of the source series.
     """
     assert length > 0, "Invalid length, must be > 0!"
@@ -1677,37 +1696,72 @@ def variance(source: Series[float], length: int, biased: bool = True) -> float |
         return NA(float)
 
     count: Persistent[int] = 0
-    mean: Persistent[float] = 0.0
-    m2: Persistent[float] = 0.0
+    reset_kahan_interval: Persistent[int] = _reset_kahan_interval \
+        if _reset_kahan_interval > 0 \
+        else (-_reset_kahan_interval * length)
 
-    # Warming up phase
+    sum_val: Persistent[float] = 0.0
+    sum_val_c: Persistent[float] = 0.0
+    sum_sq: Persistent[float] = 0.0
+    sum_sq_c: Persistent[float] = 0.0
+
+    # Round to mintick precision - strange, but this is how TradingView does it
+    scaled = round(source * syminfo.pricescale)
+    source = scaled / syminfo.pricescale
+
+    # Always add new value with Kahan summation
+    y = source - sum_val_c
+    t = sum_val + y
+    sum_val_c = (t - sum_val) - y
+    sum_val = t
+
+    # Kahan summation for squared value
+    sq = source * source
+    y = sq - sum_sq_c
+    t = sum_sq + y
+    sum_sq_c = (t - sum_sq) - y
+    sum_sq = t
+
     if count < length:
         count += 1
-        delta = source - mean
-        mean += delta / count
-        delta2 = source - mean
-        m2 += delta * delta2
         if count < length:
             return NA(float)
-
-    # Normal calculation phase
     else:
-        old_value = source[length]
-        old_mean = mean
+        count += 1
+        if count % reset_kahan_interval == 0:
+            window = source[0:length]
+            sum_val = math.fsum(window)
+            sum_val_c = 0.0  # noqa
+            sum_sq = math.fsum(x * x for x in window)
+            sum_sq_c = 0.0  # noqa
+        else:
+            # Remove old value with Kahan summation
+            old_value = source[length]
+            y = -old_value - sum_val_c
+            t = sum_val + y
+            sum_val_c = (t - sum_val) - y  # noqa - it is persistent
+            sum_val = t
 
-        lm1 = length - 1
-        mean = (length * old_mean - old_value) / lm1
-        m2 -= (old_value - old_mean) * (old_value - mean)
+            # Remove old squared value with Kahan summation
+            sq_old = old_value * old_value
+            y = -sq_old - sum_sq_c
+            t = sum_sq + y
+            sum_sq_c = (t - sum_sq) - y  # noqa - it is persistent
+            sum_sq = t
 
-        delta = source - mean
-        mean += delta / length
-        delta2 = source - mean
-        m2 += delta * delta2
+    # Calculate variance
+    if biased:
+        # Biased variance: divide by n
+        mean_val = sum_val / length
+        squares = sum_sq / length
+        var = squares - mean_val * mean_val
+    else:
+        # Unbiased variance: divide by n-1
+        mean_val = sum_val / length
+        squares = sum_sq / (length - 1)
+        var = squares - (length / (length - 1)) * mean_val * mean_val
 
-    try:
-        return m2 / (count if biased else (count - 1))
-    except ZeroDivisionError:
-        return NA(float)
+    return var
 
 
 def valuewhen(condition: bool, source: float, occurrence: int) -> float | NA[float]:
@@ -1770,9 +1824,8 @@ def vwap(source: Series[float], anchor: bool | None = None, stdev_mult: float | 
         return NA(float) if stdev_mult is None else (NA(float), NA(float), NA(float))
 
     # Calculate VWAP
-    try:
-        vwap_value = sum_pv / sum_vol
-    except ZeroDivisionError:
+    vwap_value = sum_pv / sum_vol
+    if isinstance(vwap_value, NA):
         return NA(float) if stdev_mult is None else (NA(float), NA(float), NA(float))
 
     # If stdev_mult is specified, calculate bands
@@ -1787,10 +1840,7 @@ def vwap(source: Series[float], anchor: bool | None = None, stdev_mult: float | 
 
 
 def vwma(source: float, length: int) -> float | NA[float]:
-    try:
-        return sma(source * volume, length) / sma(volume, length)
-    except ZeroDivisionError:
-        return NA(float)
+    return sma(source * volume, length) / sma(volume, length)
 
 
 # noinspection PyUnusedLocal
@@ -1845,11 +1895,7 @@ def wma(source: Series[float], length: int) -> float | NA[float]:
         # Substract the oldest weighted value and add the newest weighted value
         weighted_summ -= old_summ - length * source
 
-    try:
-        val = weighted_summ / denom
-    except ZeroDivisionError:
-        val = NA(float)
-
+    val = weighted_summ / denom
     return val  # type: ignore
 
 
@@ -1868,10 +1914,7 @@ def wpr(length: int) -> float | NA[float] | Series[float]:
     hmax = highest(high, length)
     lmin = lowest(low, length)
 
-    try:
-        return 100 * (close - hmax) / (hmax - lmin)
-    except ZeroDivisionError:
-        return NA(float)
+    return 100 * (close - hmax) / (hmax - lmin)
 
 
 @module_property
@@ -1881,7 +1924,4 @@ def wvad() -> float | NA[float] | Series[float]:
 
     :return: Weighted Volume Accumulation/Distribution
     """
-    try:
-        return (close - open) / (high - low) * volume
-    except ZeroDivisionError:
-        return NA(float)
+    return (close - open) / (high - low) * volume
