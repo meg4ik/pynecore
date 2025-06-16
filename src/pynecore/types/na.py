@@ -26,7 +26,7 @@ class NA(Generic[T]):
             return na
 
     # noinspection PyShadowingBuiltins
-    def __init__(self, type: Type[T] | T | None = int):
+    def __init__(self, type: Type[T] | T | None = int) -> None:
         """
         Initialize a new NA value with an optional type parameter.
         The default type is int.

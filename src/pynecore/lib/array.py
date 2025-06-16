@@ -416,7 +416,7 @@ def mode(id: list[T]) -> T:
 # TODO: implement new_linefill()
 
 # noinspection PyShadowingNames
-def new(size: int = 0, initial_value: T | NA[T] = NA()) -> list[T | NA[T]]:
+def new(size: int = 0, initial_value: T | NA[T] = NA(T)) -> list[T | NA[T]]:
     """
     Creates a new array of the specified size, with each element initialized to the specified value.
 

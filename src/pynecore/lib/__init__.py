@@ -15,12 +15,12 @@ from ..core.script import script, input
 
 from ..types.series import Series
 from ..types.na import NA
-from ..types.plot import Plot
+from ..types.box import Box
+from ..types.line import Line
 from ..types.hline import HLine
+from ..types.table import Table
+from ..types.plot import Plot
 from ..types.alert import Alert
-from . import _plot
-from . import _hline
-from . import _alert
 from . import syminfo  # This should be imported before core.datetime to avoid circular import!
 from . import barstate, string, log, math
 
@@ -42,7 +42,7 @@ __all__ = [
     'timestamp',
 
     'plot', 'plotchar', 'plotarrow', 'plotbar', 'plotcandle', 'plotshape', 'barcolor', 'bgcolor',
-    'fill', 'hline',
+    'fill', 'hline', 'line', 'box', 'table',
 
     'alert', 'alertcondition',
 
@@ -203,70 +203,12 @@ def fill(*_, **__):
     ...
 
 
-class _HLine(_hline.HLineConstants):
-    """
-    Simulates `hline` namespace and function of Pine Script
-    """
+box = Box
+hline = HLine
+line = Line
+table = Table
 
-    def __call__(self, price: Any, title: str | None = None, color: Any = None,
-                 linestyle: Any = None, linewidth: int = 1, *_, **__) -> HLine:
-        """
-        Draw a horizontal line at a fixed price level
-
-        :param price: The price level at which the line will be drawn
-        :param title: The title of the line
-        :param color: The color of the line
-        :param linestyle: The style of the line
-        :param linewidth: The width of the line
-        :return: A HLine object
-        """
-        return HLine()
-
-
-# Create an instance of _HLine to be used as both a function and a module
-hline = _HLine()
-
-
-class _Plot(_plot.PlotConstant):
-    """
-    Simulates `plot` namespace of Pine Script
-    """
-
-    def __call__(self, series: Any, title: str | None = None, *_, **__) -> Plot:
-        """
-        Plot series, by default a CSV is generated, but this can be extended
-
-        :param series: The value to plot in every bar
-        :param title: The title of the plot, if multiple plots are created with the same title, a
-                      number will be appended
-        :return: The a Plot object, can be used to reference the plot in other functions
-        """
-        if _lib_semaphore:
-            return Plot(title)
-
-        if bar_index == 0:  # Only check if it is the first bar for performance reasons
-            # Check if it is called from the main function
-            if sys._getframe(1).f_code.co_name != 'main':  # noqa
-                raise RuntimeError("The plot function can only be called from the main function!")
-
-        # Ensure unique title
-        if title is None:
-            title = 'Plot'
-        if title in _plot_data:
-            c = 0
-            t = title
-            while t in _plot_data:
-                t = title + ' ' + str(c)
-                c += 1
-            title = t
-
-        # Store plot data
-        _plot_data[title] = series
-
-        return Plot(title)
-
-
-plot = _Plot()
+plot = Plot
 
 
 def plotarrow(*_, **__):
@@ -291,25 +233,7 @@ def plotshape(*_, **__):
 
 ### Alert ###
 
-class _Alert(_alert.AlertConstants):
-
-    def __call__(self, message: str, freq: Alert = _alert.AlertConstants.freq_once_per_bar):
-        """
-            Display alert message. Uses rich formatting if available, falls back to print.
-
-            :param message: Alert message to display
-            :param freq: Alert frequency (currently ignored)
-            """
-        try:
-            # Try to use typer for nice colored output
-            import typer
-            typer.secho(f"🚨 ALERT: {message}", fg=typer.colors.BRIGHT_YELLOW, bold=True)
-        except ImportError:
-            # Fallback to simple print
-            print(f"🚨 ALERT: {message}")
-
-
-alert = _Alert()
+alert = Alert
 
 
 def alertcondition(*_, **__):

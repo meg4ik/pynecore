@@ -1,6 +1,6 @@
 from .persistent import Persistent
 from .series import Series, PersistentSeries
-from .na import NA, NA
+from .na import NA
 
 from .alert import Alert
 from .box import Box
