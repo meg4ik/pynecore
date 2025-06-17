@@ -222,7 +222,7 @@ class SeriesTransformer(ast.NodeTransformer):
                     )
                 )
 
-        # Process function body
+        # Process function body with correct context
         node = cast(ast.FunctionDef, self.generic_visit(node))
 
         # Find the right position to insert initializations after docstring if exists
@@ -278,7 +278,7 @@ class SeriesTransformer(ast.NodeTransformer):
                 )
             )
 
-        return node
+        return self.generic_visit(node)
 
     def visit_Assign(self, node: ast.Assign) -> ast.AST | ast.Assign:
         """
@@ -386,6 +386,14 @@ class SeriesTransformer(ast.NodeTransformer):
         node.slice = self.visit(cast(ast.AST, node.slice))
         return node
 
+    def generic_visit(self, node: ast.AST):
+        """
+        Override generic_visit to ensure all Subscript nodes are visited.
+        """
+        # For all nodes, make sure we visit their children
+        # This ensures Subscript nodes in conditional expressions are processed
+        return super().generic_visit(node)
+
     @staticmethod
     def _is_series_type(annotation: ast.expr) -> bool:
         """
@@ -407,6 +415,7 @@ class SeriesTransformer(ast.NodeTransformer):
     def visit_Call(self, node: ast.Call) -> ast.AST:
         """
         Handle lib.max_bars_back() calls and transform them to Series method calls.
+        Also processes all child nodes to ensure Subscript nodes are visited.
 
         Args:
             node: The call node
@@ -414,18 +423,21 @@ class SeriesTransformer(ast.NodeTransformer):
         Returns:
             AST node: The transformed node
         """
+        # First, visit all child nodes to ensure Subscript nodes in arguments are processed
+        node = cast(ast.Call, self.generic_visit(node))
+        
         # Check if this is a lib.max_bars_back call
         if (isinstance(node.func, ast.Attribute) and
                 node.func.attr == 'max_bars_back' and
                 isinstance(node.func.value, ast.Name) and
                 node.func.value.id == 'lib' and
                 len(node.args) >= 2):
-            
+
             # Get the source variable name from first argument
             if isinstance(node.args[0], ast.Name):
                 var_name = cast(ast.Name, node.args[0]).id
                 series_name = self._get_series_in_current_scope(var_name)
-                
+
                 if series_name:
                     # Transform to: __series_name__.max_bars_back = value
                     return cast(ast.AST, ast.Assign(
@@ -436,10 +448,10 @@ class SeriesTransformer(ast.NodeTransformer):
                                 ctx=ast.Store()
                             )
                         ],
-                        value=self.visit(cast(ast.AST, node.args[1]))
+                        value=node.args[1]  # Already visited above
                     ))
-        
-        return self.generic_visit(node)
+
+        return node
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> ast.AST | None:
         """

@@ -145,22 +145,36 @@ The Library Series transformer prepares library Series variables (like close, op
 
 **Original code:**
 ```python
-lib.close[1]  # Access previous bar's close price
+def main():
+    def f():
+        return lib.high[1]
+    h1 = lib.high[1]
 ```
 
 **Transformed code:**
 ```python
-_lib_close: Series = lib.close
-_lib_close[1]  # Now works with Series transformer
+def main():
+    __lib·high: Series = lib.high
+
+    def f():
+        __lib·high: Series = lib.high
+        return __lib·high[1]
+    h1 = __lib·high[1]
 ```
 
 Key aspects:
-- Creates local Series variables for library Series
+- Creates local Series variables for library Series in each scope
+- Uses Unicode middle dot (·) as separator to prevent name collisions
+- Maintains proper function context across nested functions
 - Prepares variables for Series transformer processing
 
-If you import a variable from a library, it does not know if it is a series or not. But if you use
-indexing (subscription) on it, it should initialize it as a series. This is needed, because the AST
-transformer does not know anything about the other files just the one it is currently transforming.
+**Collision Prevention**: The transformer uses `__lib·` prefix with Unicode middle dot separators to prevent naming conflicts. For example:
+- `mylib.bar.foo` becomes `__lib·mylib·bar·foo`  
+- `mylib.bar_foo` becomes `__lib·mylib·bar_foo`
+
+This ensures that hierarchical module names cannot collide with underscore-separated names.
+
+If you import a variable from a library, it does not know if it is a series or not. But if you use indexing (subscription) on it, it should initialize it as a series. This is needed, because the AST transformer does not know anything about the other files just the one it is currently transforming.
 
 ### Function Isolation Transformer
 
@@ -230,13 +244,13 @@ previous = s[1]
 ```python
 from pynecore.core.series import SeriesImpl
 
-__series_main_s__ = SeriesImpl()
-__series_function_vars__ = {'main': ['__series_main_s__']}
+__series_main·s__ = SeriesImpl()
+__series_function_vars__ = {'main': ['__series_main·s__']}
 
 def main():
-    s = __series_main_s__.add(close)
-    s = __series_main_s__.set(s + 1)
-    previous = __series_main_s__[1]
+    s = __series_main·s__.add(close)
+    s = __series_main·s__.set(s + 1)
+    previous = __series_main·s__[1]
 ```
 
 Key aspects:
@@ -244,6 +258,7 @@ Key aspects:
 - Converts assignments to add() and set() operations
 - Redirects indexing operations to the global instance
 - Maintains a registry of all Series variables per function scope
+- Uses Unicode middle dot (·) as scope separator to prevent conflicts with underscores in function names
 
 ### Persistent Transformer
 
@@ -257,12 +272,12 @@ p += 1
 
 **Transformed code:**
 ```python
-__persistent_main_p__ = 0
-__persistent_function_vars__ = {'main': ['__persistent_main_p__']}
+__persistent_main·p__ = 0
+__persistent_function_vars__ = {'main': ['__persistent_main·p__']}
 
 def main():
-    global __persistent_main_p__
-    __persistent_main_p__ += 1
+    global __persistent_main·p__
+    __persistent_main·p__ += 1
 ```
 
 Key aspects:
@@ -400,30 +415,36 @@ from pynecore.core import safe_convert
 
 # Global variables and scope ID
 __scope_id__ = "8af7c21e_example.py"
-__persistent_main_count__ = 0
-__series_main_ma__ = SeriesImpl()
-__series_main_range_ratio__ = SeriesImpl()
+__persistent_main·count__ = 0
+__series_main·ma__ = SeriesImpl()
+__series_main·range_ratio__ = SeriesImpl()
 
 # Function and variable registries
-__persistent_function_vars__ = {'main': ['__persistent_main_count__']}
-__series_function_vars__ = {'main': ['__series_main_ma__', '__series_main_range_ratio__']}
+__persistent_function_vars__ = {'main': ['__persistent_main·count__']}
+__series_function_vars__ = {'main': ['__series_main·ma__', '__series_main·range_ratio__']}
 
 def main():
     global __scope_id__
-    global __persistent_main_count__
+    global __persistent_main·count__
+    
+    # Library Series declarations
+    __lib·close: Series = lib.close
+    __lib·open_: Series = lib.open_
+    __lib·high: Series = lib.high
+    __lib·low: Series = lib.low
 
     # Persistent counter
-    __persistent_main_count__ += 1
+    __persistent_main·count__ += 1
 
     # Moving average calculation
-    ma = __series_main_ma__.add(isolate_function(lib.ta.sma, "main|lib.ta.sma|0", __scope_id__)(lib.close, 14))
+    ma = __series_main·ma__.add(isolate_function(lib.ta.sma, "main|lib.ta.sma|0", __scope_id__)(__lib·close, 14))
     
     # Safe division that could cause division by zero
-    range_ratio = __series_main_range_ratio__.add(safe_convert.safe_div(lib.close - lib.open_, lib.high - lib.low))
+    range_ratio = __series_main·range_ratio__.add(safe_convert.safe_div(__lib·close - __lib·open_, __lib·high - __lib·low))
 
     # Plot results
     lib.plot(ma, "MA", color=lib.color.blue)
-    lib.plot(__persistent_main_count__, "Count", color=lib.color.red)
+    lib.plot(__persistent_main·count__, "Count", color=lib.color.red)
     lib.plot(range_ratio, "Range Ratio", color=lib.color.green)
 ```
 

@@ -1,7 +1,7 @@
+from typing import cast, Any
 import ast
 import json
 from pathlib import Path
-from typing import cast
 
 
 class ModulePropertyTransformer(ast.NodeTransformer):
@@ -17,7 +17,7 @@ class ModulePropertyTransformer(ast.NodeTransformer):
 
     def __init__(self):
         # Structure: module -> name -> {"type": "property"|"variable"}
-        self.module_info: dict[str, dict[str, dict[str, any]]] = {}
+        self.module_info: dict[str, dict[str, dict[str, Any]]] = {}
         # Track if we're inside isolate_function args
         self.in_isolate_function = False
 
@@ -59,11 +59,15 @@ class ModulePropertyTransformer(ast.NodeTransformer):
         return super().visit(node)
 
     def visit_Attribute(self, node: ast.Attribute) -> ast.AST:
-        """Process attribute access, but skip if inside isolate_function args."""
+        """Process attribute access, but skip if inside isolate_function args or type annotations."""
         node = cast(ast.Attribute, self.generic_visit(node))
 
         # Skip if inside isolate_function
         if self.in_isolate_function:
+            return node
+
+        # Skip if inside type annotations
+        if self._is_in_type_annotation(node):
             return node
 
         # Retrieve the AST parent node
@@ -160,12 +164,58 @@ class ModulePropertyTransformer(ast.NodeTransformer):
             return module_path, final_attr
         return None, None
 
+    def _is_in_type_annotation(self, node: ast.Attribute) -> bool:
+        """Check if the node is inside a type annotation."""
+        current = node
+        while hasattr(current, 'parent'):
+            parent = current.parent
+
+            # Check if we're in an annotated assignment's annotation
+            if (isinstance(parent, ast.AnnAssign) and parent.annotation and
+                    self._is_node_in_subtree(node, cast(ast.AST, parent.annotation))):
+                return True
+
+            # Check if we're in a function argument's annotation
+            if (isinstance(parent, ast.arg) and parent.annotation and
+                    self._is_node_in_subtree(node, cast(ast.AST, parent.annotation))):
+                return True
+
+            # Check if we're in a function return annotation
+            if (isinstance(parent, ast.FunctionDef) and parent.returns and
+                    self._is_node_in_subtree(node, parent.returns)):
+                return True
+
+            # Check if we're in an async function return annotation
+            if (isinstance(parent, ast.AsyncFunctionDef) and parent.returns and
+                    self._is_node_in_subtree(node, parent.returns)):
+                return True
+
+            current = parent
+
+        return False
+
+    @staticmethod
+    def _is_node_in_subtree(node: ast.AST, subtree: ast.AST | None) -> bool:
+        """Check if a node is contained within a subtree."""
+        if subtree is None:
+            return False
+
+        if node is subtree:
+            return True
+
+        # Recursively check all child nodes
+        for child in ast.walk(subtree):
+            if child is node:
+                return True
+
+        return False
+
     @staticmethod
     def _copy_node(node: ast.AST) -> ast.expr:
         """Create a shallow copy of an AST node (Attribute or Name)."""
         if isinstance(node, ast.Name):
-            return ast.Name(id=node.id, ctx=node.ctx)
+            return cast(ast.expr, ast.Name(id=node.id, ctx=node.ctx))
         elif isinstance(node, ast.Attribute):
-            value = cast(ast.expr, ModulePropertyTransformer._copy_node(node.value))
-            return ast.Attribute(value=value, attr=node.attr, ctx=node.ctx)
+            value = ModulePropertyTransformer._copy_node(cast(ast.AST, node.value))
+            return cast(ast.expr, ast.Attribute(value=value, attr=node.attr, ctx=node.ctx))
         return cast(ast.expr, node)
