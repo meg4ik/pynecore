@@ -11,6 +11,7 @@ from datetime import datetime, UTC
 from pynecore.types.ohlcv import OHLCV
 from pynecore.types.na import NA
 
+DO_NOTHING = -1
 WRITE_TUPLE = 0
 WRITE_DICT = 1
 WRITE_OHLCV = 2
@@ -95,6 +96,9 @@ class CSVWriter:
 
         try:
             while True:
+                cmd = DO_NOTHING
+                data = {}
+
                 try:
                     cmd, data = self._queue.get(timeout=self._idle_time)
                 except queue.Empty:
