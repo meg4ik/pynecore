@@ -325,6 +325,10 @@ def dict_comparator() -> DictComparatorProtocol:
     from pynecore import lib
 
     def _comparator(a: dict[str, Any], b: dict[str, Any], **kwargs):
+        kwargs = dict(kwargs)
+        abs_tol = kwargs.setdefault('abs_tol', 1e-8)
+        rel_tol = kwargs.setdefault('rel_tol', 1e-5)
+
         key = None
         try:
             for key, value in a.items():
@@ -335,7 +339,7 @@ def dict_comparator() -> DictComparatorProtocol:
                     assert isinstance(value, NA)
                 elif isinstance(value, (float, int)):
                     assert isinstance(b[key], (float, int))
-                    assert math.isclose(value, b[key], **kwargs)
+                    assert math.isclose(value, b[key], abs_tol=abs_tol, rel_tol=rel_tol)
                 else:
                     assert value == b[key]
         except AssertionError:
@@ -396,6 +400,7 @@ def log_comparator(capsys) -> LogComparatorProtocol:
         for handler in pytest_handlers:
             root_logger.removeHandler(handler)
 
+        # noinspection PyUnreachableCode
         try:
             # Run the test
             yield
@@ -441,7 +446,7 @@ def log_comparator(capsys) -> LogComparatorProtocol:
 def strat_equity_comparator() -> StratEquityComparatorProtocol:
     from pynecore.lib import string
 
-    def _comparator(trade: 'Trade', good_entry: dict[str, Any], good_exit: dict[str, Any], **kwargs):
+    def _comparator(trade: 'Trade', good_entry: dict[str, Any], good_exit: dict[str, Any], **__):
         assert ((trade.sign > 0 and good_entry['Type'] == 'Entry long')
                 or (trade.sign < 0 and good_entry['Type'] == 'Entry short'))
 
