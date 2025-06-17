@@ -324,6 +324,7 @@ def sum(source: Series[TFI | NA[TFI]], length: int) -> float | NA[float] | Serie
     if length == 1:  # Shortcut
         return source
     assert length > 0, "Invalid length, length must be greater than 0!"
+    length = int(length)
 
     isna = isinstance(source, NA)
     if not isna:

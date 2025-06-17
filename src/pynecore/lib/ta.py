@@ -16,7 +16,7 @@ from pynecore.core.overload import overload
 from ..core import safe_convert
 
 # We need to use this kind of import to make transformer work
-from pynecore.lib import open, high, low, close, volume, bar_index, array, session, math as lib_math, syminfo
+from pynecore.lib import open, high, low, close, volume, bar_index, array, session, math as lib_math
 
 TFIB = TypeVar('TFIB', float, int, bool)
 TFI = TypeVar('TFI', float, int)
@@ -164,6 +164,7 @@ def alma(source: Series[float], length: int, offset: float = 0.85, sigma: float 
     assert length > 0, "Invalid length, length must be greater than 0!"
     if isinstance(source, NA):
         return NA(float)
+    length = int(length)
 
     # Use persistent weights to avoid recalculation
     weights: Persistent[list[float]] = []
@@ -229,9 +230,6 @@ def bb(source: float, length: int, mult: float | int) -> tuple[float | NA[float]
 
     std_dev = stdev(source, length)
 
-    # Round to mintick precision - strange, but this is how TradingView does it
-    scaled = round(source * syminfo.pricescale)
-    source = scaled / syminfo.pricescale
     middle = sma(source, length)
 
     if isinstance(middle, NA):
@@ -279,15 +277,15 @@ def change(source: Series[TFIB], length: int = 1) -> TFIB | NA[TFIB]:
     :return: The change from source to source[length]
     """
     assert length > 0, "Invalid length, length must be greater than 0!"
+    length = int(length)
+
+    source = round(source, 14)  # We need to round to prevent problems caused by floating point precision
     prev_val = source[length]
+
     if isinstance(source, NA) or isinstance(prev_val, NA):
         return NA(cast(type[TFIB], type(source)))  # type: ignore
     if isinstance(source, (float, int)):
-        diff = source - prev_val
-        if isinstance(syminfo.mintick, NA):
-            return cast(TFIB, diff)
-        # Round to mintick precision - strange, but this is how TradingView does it
-        diff = round(diff * syminfo.pricescale) / syminfo.pricescale
+        diff = round(source - prev_val, 14)
         return cast(TFIB, diff)
     return source != prev_val
 
@@ -367,6 +365,7 @@ def correlation(source1: Series[float], source2: Series[float], length: int) -> 
     assert length > 0, "Length must be greater than 0"
     if isinstance(source1, NA) or isinstance(source2, NA):
         return NA(float)
+    length = int(length)
 
     sum_x: Persistent[float] = 0.0
     sum_y: Persistent[float] = 0.0
@@ -469,6 +468,7 @@ def dev(source: Series[float], length: int, _mean: float | None = None) -> float
     assert length > 0, "Invalid length, length must be greater than 0!"
     if length == 1:
         return 0.0
+    length = int(length)
 
     mean = _mean if _mean is not None else sma(source, length)
     if isinstance(mean, NA):
@@ -527,6 +527,7 @@ def ema(source: float, length: int, _alpha: float | None = None) -> float | NA[f
     :return:
     """
     assert length > 0, "Invalid length, length must be greater than 0!"
+    length = int(length)
     if length == 1:  # Shortcut
         return source
 
@@ -556,6 +557,7 @@ def falling(source: float, length: int) -> bool:
     :return: True if the source series is falling for length bars long
     """
     assert length > 0, "Invalid length, length must be greater than 0!"
+    length = int(length)
 
     last_val: Persistent[float | NA[float]] = NA(float)
     counter: Persistent[int] = 0
@@ -651,6 +653,7 @@ def hma(source: float, length: int) -> float | NA[float]:
     assert length > 0, "Invalid length, length must be greater than 0!"
     if isinstance(source, NA):
         return NA(float)
+    length = int(length)
 
     ma_np2 = wma(source, length // 2)
     ma = wma(source, length)
@@ -686,6 +689,7 @@ def kc(series: float, length: int, mult: float | int, useTrueRange: bool = True)
     """
     assert length > 0, "Invalid length, length must be greater than 0!"
     assert mult > 0, "Invalid multiplier, multiplier must be greater than 0!"
+
     base = ema(series, length)
     span = tr(False) if useTrueRange else (high - low)
     range_ma = ema(span, length)
@@ -729,7 +733,7 @@ def linreg(source: Series[float], length: int, offset: int) -> float | Series[fl
     assert length > 0, "Invalid length, must be greater than 0!"
     if length == 1:
         return source
-
+    length = int(length)
     window_size = length
 
     # Precomputed constants for x-coordinates
@@ -892,6 +896,7 @@ def median(source: Series[TFI], length: int) -> TFI | NA[TFI] | Series[TFI]:
     assert length > 0, "Invalid length, length must be greater than 0!"
     if length == 1:  # Shortcut
         return source
+    length = int(length)
 
     if isinstance(source, NA):
         return NA(cast(type[TFI], type(source)))  # type: ignore
@@ -949,6 +954,8 @@ def mfi(source: float, length: int) -> float | NA[float]:
     assert length > 0, "Invalid length, length must be greater than 0!"
     if isinstance(source, NA):
         return NA(float)
+    length = int(length)
+
     last_source: Persistent = NA(float)
     chg = source - last_source
     last_source = source  # noqa
@@ -989,6 +996,7 @@ def mode(source: Series[TFI], length: int) -> TFI | NA:
     assert length > 0, "Invalid length, length must be greater than 0!"
     if isinstance(source, NA) or bar_index < length - 1:
         return NA(float)
+    length = int(length)
 
     # Store values for quick access
     values = [source[i] for i in builtins.range(length) if source[i] is not NA(float)]
@@ -1085,6 +1093,7 @@ def percentile_linear_interpolation(source: Series[float], length: int, percenta
     assert length > 0, "Invalid length, length must be greater than 0!"
     if isinstance(source, NA):
         return NA(float)
+    length = int(length)
 
     if bar_index < length - 1:
         return NA(float)
@@ -1105,6 +1114,7 @@ def percentile_nearest_rank(source: Series[float], length: int, percentage: int 
     assert length > 0, "Invalid length, length must be greater than 0!"
     if isinstance(source, NA):
         return NA(float)
+    length = int(length)
 
     if bar_index < length - 1:
         return NA(float)
@@ -1124,6 +1134,7 @@ def percentrank(source: Series[float], length: int) -> float | NA[float] | Serie
     assert length > 0, "Invalid length, length must be greater than 0!"
     if isinstance(source, NA) or bar_index < length:
         return NA(float)
+    length = int(length)
 
     return array.percentrank(source[:length + 1], 0)  # type: ignore
 
@@ -1263,6 +1274,7 @@ def range(source: Series[float], length: int) -> float | NA[float]:
     assert length > 0, "Invalid length, length must be greater than 0!"
     if isinstance(source, NA):
         return NA(float)
+    length = int(length)
 
     return highest(source, length) - lowest(source, length)
 
@@ -1276,6 +1288,7 @@ def rci(source: Series[float], length: int) -> float | NA[float]:
     :return: RCI value between -100 and 100, or na during warmup
     """
     assert length > 0, "Invalid length, length must be greater than 0!"
+    length = int(length)
 
     if isinstance(source, NA) or bar_index < length:
         return NA(float)
@@ -1317,6 +1330,7 @@ def rising(source: float, length: int) -> bool:
     :return: True if the source series is rising for length bars long
     """
     assert length > 0, "Invalid length, length must be greater than 0!"
+    length = int(length)
 
     last_val: Persistent[float | NA] = NA(float)
     counter: Persistent[int] = 0
@@ -1356,6 +1370,7 @@ def roc(source: Series[float], length: int) -> float | NA[float]:
     assert length > 0, "Invalid length, length must be greater than 0!"
     if isinstance(source, NA):
         return NA(float)
+    length = int(length)
 
     prev_val = source[length]
     chg = change(source, length)
@@ -1378,10 +1393,6 @@ def rsi(source: float, length: int) -> float | NA[float]:
     assert length > 0, "Invalid length, length must be greater than 0!"
     if isinstance(source, NA):
         return NA(float)
-
-    # Round to mintick precision - strange, but this is how TradingView does it
-    scaled = round(source * syminfo.pricescale)
-    source = scaled / syminfo.pricescale
 
     prev_src: Persistent[float | NA[float]] = NA(float)
     if isinstance(prev_src, NA):
@@ -1509,6 +1520,7 @@ def stoch(source: float | Series[float], high: float | Series[float], low: float
     assert length > 0, "Invalid length, length must be greater than 0!"
     if isinstance(source, NA) or isinstance(high, NA) or isinstance(low, NA):
         return NA(float)
+    length = int(length)
 
     highs: Series[float] = high
     lows: Series[float] = low
@@ -1677,37 +1689,28 @@ def tsi(source: Series[float], short_length: int, long_length: int) -> float | N
 
 def variance(source: Series[float],
              length: int,
-             biased: bool = True,
-             _reset_kahan_interval: int = 10) -> float | NA[float]:
+             biased: bool = True) -> float | NA[float]:
     """
     Calculate the rolling variance of the source series.
 
     :param source: The source series.
     :param length: The length of the rolling window.
     :param biased: If True, calculates biased variance; otherwise, calculates unbiased variance.
-    :param _reset_kahan_interval: The interval at which to reset the Kahan summation, if negative it
-                                  is set to (-length * _reset_kahan_interval)
     :return: The variance of the source series.
     """
     assert length > 0, "Invalid length, must be > 0!"
+    length = int(length)
     if length == 1:
         return 0.0
     if isinstance(source, NA):
         return NA(float)
 
     count: Persistent[int] = 0
-    reset_kahan_interval: Persistent[int] = _reset_kahan_interval \
-        if _reset_kahan_interval > 0 \
-        else (-_reset_kahan_interval * length)
 
     sum_val: Persistent[float] = 0.0
     sum_val_c: Persistent[float] = 0.0
     sum_sq: Persistent[float] = 0.0
     sum_sq_c: Persistent[float] = 0.0
-
-    # Round to mintick precision - strange, but this is how TradingView does it
-    scaled = round(source * syminfo.pricescale)
-    source = scaled / syminfo.pricescale
 
     # Always add new value with Kahan summation
     y = source - sum_val_c
@@ -1728,26 +1731,20 @@ def variance(source: Series[float],
             return NA(float)
     else:
         count += 1
-        if count % reset_kahan_interval == 0:
-            window = source[0:length]
-            sum_val = math.fsum(window)
-            sum_val_c = 0.0  # noqa
-            sum_sq = math.fsum(x * x for x in window)
-            sum_sq_c = 0.0  # noqa
-        else:
-            # Remove old value with Kahan summation
-            old_value = source[length]
-            y = -old_value - sum_val_c
-            t = sum_val + y
-            sum_val_c = (t - sum_val) - y  # noqa - it is persistent
-            sum_val = t
 
-            # Remove old squared value with Kahan summation
-            sq_old = old_value * old_value
-            y = -sq_old - sum_sq_c
-            t = sum_sq + y
-            sum_sq_c = (t - sum_sq) - y  # noqa - it is persistent
-            sum_sq = t
+        # Remove old value with Kahan summation
+        old_value = source[length]
+        y = -old_value - sum_val_c
+        t = sum_val + y
+        sum_val_c = (t - sum_val) - y  # noqa - it is persistent
+        sum_val = t
+
+        # Remove old squared value with Kahan summation
+        sq_old = old_value * old_value
+        y = -sq_old - sum_sq_c
+        t = sum_sq + y
+        sum_sq_c = (t - sum_sq) - y  # noqa - it is persistent
+        sum_sq = t
 
     # Calculate variance
     if biased:
@@ -1871,6 +1868,7 @@ def wma(source: Series[float], length: int) -> float | NA[float]:
     assert length > 0, "Invalid length, length must be greater than 0!"
     if isinstance(source, NA):
         return NA(float)
+    length = int(length)
 
     # Calculate denominator only once
     denom: Persistent[float] = length * (length + 1) / 2
@@ -1907,6 +1905,7 @@ def wpr(length: int) -> float | NA[float] | Series[float]:
     :return: Williams %R value
     """
     assert length > 0, "Invalid length, must be greater than 0!"
+    length = int(length)
 
     if length == 1:
         return close
