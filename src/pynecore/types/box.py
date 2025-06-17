@@ -7,6 +7,7 @@ class Box:
 
     def __init__(self, *_, **kwargs):
         self._registry.append(self)
+
         self.__dict__.update(**kwargs)
 
     @classproperty
@@ -17,10 +18,23 @@ class Box:
     def new(cls, *_, **kwargs):
         return cls(**kwargs)
 
-    @classmethod
-    def delete(cls):
-        cls._registry.remove(cls)
+    def delete(self):
+        self.__class__._registry.remove(self)
 
     # noinspection PyShadowingBuiltins,PyMethodParameters
     def copy(id):
         return _copy(id)
+
+    # noinspection PyMethodMayBeStatic
+    def get_top(self, *_, **__):
+        from ..lib import high
+        return high
+
+    # noinspection PyMethodMayBeStatic
+    def get_bottom(self, *_, **__):
+        from ..lib import low
+        return low
+
+    def set_right(self, *_, **__): ...
+
+    def set_extend(self, *_, **__): ...

@@ -56,6 +56,10 @@ def method_call(method: str | Callable, var: Any, *args, **kwargs) -> Any:
 
     # It is a local method, it should be a local function
     elif callable(method):
+        # TODO: check this this should be handled by the compiler
+        if hasattr(var, method.__name__):
+            return isolate_function(getattr(var, method.__name__),
+                                    '__method_call__', __scope_id__)(var, *args, **kwargs)
         return isolate_function(method, '__method_call__', __scope_id__)(var, *args, **kwargs)
 
     return None

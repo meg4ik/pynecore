@@ -16,6 +16,7 @@ class Table:
     def new(cls, *_, **kwargs):
         return cls(**kwargs)
 
-    @classmethod
-    def delete(cls):
-        cls._registry.remove(cls)
+    def delete(self):
+        self.__class__._registry.remove(self)
+
+    def cell(self, *_, **__): ...
