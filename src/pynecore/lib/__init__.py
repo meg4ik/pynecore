@@ -39,6 +39,8 @@ __all__ = [
     # Functions / objects
     'input', 'script',
 
+    'max_bars_back',
+
     'timestamp',
 
     'plot', 'plotchar', 'plotarrow', 'plotbar', 'plotcandle', 'plotshape', 'barcolor', 'bgcolor',
@@ -96,6 +98,14 @@ _lib_semaphore = False
 #
 # Functions
 #
+
+def max_bars_back(var: Any, num: int) -> None:
+    """
+    Function sets the maximum number of bars that is available for historical reference of a given built-in or user variable.
+    :param var: Series variable identifier for which history buffer should be resized.
+    :param num: History buffer size which is the number of bars to keep.
+    """
+
 
 ### Date / Time ###
 

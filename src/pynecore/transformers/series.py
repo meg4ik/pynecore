@@ -404,6 +404,43 @@ class SeriesTransformer(ast.NodeTransformer):
             return annotation.id == 'Series'
         return False
 
+    def visit_Call(self, node: ast.Call) -> ast.AST:
+        """
+        Handle lib.max_bars_back() calls and transform them to Series method calls.
+
+        Args:
+            node: The call node
+
+        Returns:
+            AST node: The transformed node
+        """
+        # Check if this is a lib.max_bars_back call
+        if (isinstance(node.func, ast.Attribute) and
+                node.func.attr == 'max_bars_back' and
+                isinstance(node.func.value, ast.Name) and
+                node.func.value.id == 'lib' and
+                len(node.args) >= 2):
+            
+            # Get the source variable name from first argument
+            if isinstance(node.args[0], ast.Name):
+                var_name = cast(ast.Name, node.args[0]).id
+                series_name = self._get_series_in_current_scope(var_name)
+                
+                if series_name:
+                    # Transform to: __series_name__.max_bars_back = value
+                    return cast(ast.AST, ast.Assign(
+                        targets=[
+                            ast.Attribute(
+                                value=ast.Name(id=series_name, ctx=ast.Load()),
+                                attr='max_bars_back',
+                                ctx=ast.Store()
+                            )
+                        ],
+                        value=self.visit(cast(ast.AST, node.args[1]))
+                    ))
+        
+        return self.generic_visit(node)
+
     def visit_ImportFrom(self, node: ast.ImportFrom) -> ast.AST | None:
         """
         Handle imports, remove Series import.

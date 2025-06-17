@@ -73,6 +73,8 @@ NON_TRANSFORMABLE_FUNCTIONS = {
     'lib.strategy.cancel', 'lib.strategy.cancel_all',
 
     # Other
+    'lib.max_bars_back',
+    
     'copy', 'dataclass', 'dccopy',
     'pytest.raises',
 
