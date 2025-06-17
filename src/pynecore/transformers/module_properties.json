@@ -1,6 +1,12 @@
 {
   "lib": {
+    "alert": {
+      "type": "variable"
+    },
     "bar_index": {
+      "type": "variable"
+    },
+    "box": {
       "type": "variable"
     },
     "close": {
@@ -30,6 +36,9 @@
     "hour": {
       "type": "property"
     },
+    "line": {
+      "type": "variable"
+    },
     "low": {
       "type": "variable"
     },
@@ -54,6 +63,9 @@
     "second": {
       "type": "property"
     },
+    "table": {
+      "type": "variable"
+    },
     "time": {
       "type": "property"
     },
@@ -75,17 +87,6 @@
       "type": "variable"
     },
     "splits": {
-      "type": "variable"
-    }
-  },
-  "lib.alert": {
-    "freq_all": {
-      "type": "variable"
-    },
-    "freq_once_per_bar": {
-      "type": "variable"
-    },
-    "freq_once_per_bar_close": {
       "type": "variable"
     }
   },
@@ -152,7 +153,6 @@
       "type": "property"
     }
   },
-  "lib.chart.point": {},
   "lib.color": {
     "aqua": {
       "type": "variable"
@@ -240,13 +240,27 @@
     "none": {
       "type": "variable"
     },
-    "panel": {
+    "pane": {
       "type": "variable"
     },
     "price_scale": {
       "type": "variable"
     },
     "status_line": {
+      "type": "variable"
+    }
+  },
+  "lib.extend": {
+    "both": {
+      "type": "variable"
+    },
+    "left": {
+      "type": "variable"
+    },
+    "none": {
+      "type": "variable"
+    },
+    "right": {
       "type": "variable"
     }
   },
@@ -267,18 +281,12 @@
       "type": "variable"
     }
   },
-  "lib.hline_style": {
-    "style_dashed": {
-      "type": "variable"
-    },
-    "style_dotted": {
-      "type": "variable"
-    },
-    "style_solid": {
-      "type": "variable"
+  "lib.label": {},
+  "lib.linefill": {
+    "all": {
+      "type": "property"
     }
   },
-  "lib.label": {},
   "lib.location": {
     "abovebar": {
       "type": "variable"
@@ -298,6 +306,14 @@
   },
   "lib.log": {
     "logger": {
+      "type": "variable"
+    }
+  },
+  "lib.map": {
+    "TKey": {
+      "type": "variable"
+    },
+    "TValue": {
       "type": "variable"
     }
   },
@@ -324,35 +340,32 @@
       "type": "variable"
     }
   },
-  "lib.plot_style": {
-    "style_area": {
+  "lib.position": {
+    "bottom_center": {
       "type": "variable"
     },
-    "style_areabr": {
+    "bottom_left": {
       "type": "variable"
     },
-    "style_circles": {
+    "bottom_right": {
       "type": "variable"
     },
-    "style_columns": {
+    "middle_center": {
       "type": "variable"
     },
-    "style_cross": {
+    "middle_left": {
       "type": "variable"
     },
-    "style_histogram": {
+    "middle_right": {
       "type": "variable"
     },
-    "style_line": {
+    "top_center": {
       "type": "variable"
     },
-    "style_linebr": {
+    "top_left": {
       "type": "variable"
     },
-    "style_stepline": {
-      "type": "variable"
-    },
-    "style_stepline_diamond": {
+    "top_right": {
       "type": "variable"
     }
   },

@@ -49,6 +49,10 @@ def isolate_function(func: FunctionType | Callable, call_id: str | None = None, 
     # If it is a type object, return it as is
     if isinstance(func, type):
         return func  # type: ignore
+    
+    # If it is a classmethod (bound method where __self__ is a class), return it as is
+    if hasattr(func, '__self__') and isinstance(func.__self__, type):
+        return func
 
     # If it is an overloaded function, returned by the dispatcher
     is_overloaded = call_id == '__overloaded__?'
