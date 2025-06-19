@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, cast
 import sys
 
 # Import the override decorator for Python 3.12+
@@ -189,7 +189,7 @@ class CapitalComProvider(Provider):
         """
         Create Session
         """
-        res = self('session/encryptionKey', method='get')
+        res: dict = self('session/encryptionKey', method='get')
         encryption_key = res['encryptionKey']
         timestamp = res['timeStamp']
         user = self.config['user_email']
@@ -212,7 +212,7 @@ class CapitalComProvider(Provider):
             data['searchTerm'] = search_term
         if symbols:
             data['epics'] = ','.join(symbols)
-        res = self('markets', data=data, method='get')
+        res: dict = self('markets', data=data, method='get')
         return res
 
     @lru_cache(maxsize=1)
@@ -220,7 +220,8 @@ class CapitalComProvider(Provider):
         """
         Get market details of a symbol
         """
-        return self('markets/' + self.symbol, method='get')
+        assert self.symbol is not None
+        return cast(dict, self('markets/' + self.symbol, method='get'))
 
     def get_historical_prices(self, time_from: datetime = None, time_to: datetime = None, limit=1000) -> dict:
         """
@@ -230,12 +231,14 @@ class CapitalComProvider(Provider):
         :param time_to: The end time (interpreted as UTC)
         :param limit: The maximum number of candles to return
         """
+        assert self.symbol is not None
+        assert self.xchg_timeframe is not None
         params = {'resolution': self.xchg_timeframe, 'max': limit}
         if time_from is not None:
             params['from'] = time_from.isoformat()
         if time_to is not None:
             params['to'] = time_to.isoformat()
-        res = self('prices/' + self.symbol, data=params, method='get')
+        res: dict = self('prices/' + self.symbol, data=params, method='get')
         return res
 
     @override
@@ -285,7 +288,7 @@ class CapitalComProvider(Provider):
 
         :param search_term: Search term
         """
-        res = self.get_market_details(search_term=search_term)
+        res: dict = self.get_market_details(search_term=search_term)
         markets = [m['epic'] for m in res['markets']]
         markets.sort()
         return markets
@@ -359,7 +362,7 @@ class CapitalComProvider(Provider):
                 if on_progress:
                     on_progress(tf)
 
-                res = self.get_historical_prices(time_from=tf)
+                res: dict = self.get_historical_prices(time_from=tf)
                 if not res or not res['prices']:
                     break
                 ps = res['prices']

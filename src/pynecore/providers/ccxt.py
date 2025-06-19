@@ -290,8 +290,8 @@ class CCXTProvider(Provider):
         :param on_progress: Optional callback to call on progress
         """
         # Shortcuts for the time_from and time_to
-        tf = time_from.replace(tzinfo=None)
-        tt = (time_to if time_to is not None else datetime.now(UTC)).replace(tzinfo=None)
+        tf: datetime = time_from.replace(tzinfo=None)
+        tt: datetime = (time_to if time_to is not None else datetime.now(UTC)).replace(tzinfo=None)
 
         # Get the limit by exchange or use safe default
         assert self._client.id
