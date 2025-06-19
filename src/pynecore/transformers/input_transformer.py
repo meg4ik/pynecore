@@ -19,21 +19,26 @@ class InputTransformer(ast.NodeTransformer):
 
     @staticmethod
     def _is_input_call(node: ast.Call) -> bool:
-        """Check if node is lib.input() or lib.input.xxx() call"""
+        """Check if node is lib.input(), lib.input.xxx(), or imported input() call"""
         # Handle lib.input(...) pattern
         if isinstance(node.func, ast.Attribute) and node.func.attr == 'input':
             return isinstance(node.func.value, ast.Name) and node.func.value.id == 'lib'
 
         # Handle lib.input.xxx(...) pattern
-        if not isinstance(node.func, ast.Attribute):
-            return False
+        if isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Attribute):
+            return (isinstance(node.func.value.value, ast.Name) and
+                    node.func.value.value.id == 'lib' and
+                    node.func.value.attr == 'input')
 
-        if not isinstance(node.func.value, ast.Attribute):
-            return False
+        # Handle imported input(...) call
+        if isinstance(node.func, ast.Name) and node.func.id == 'input':
+            return True
 
-        return (isinstance(node.func.value.value, ast.Name) and
-                node.func.value.value.id == 'lib' and
-                node.func.value.attr == 'input')
+        # Handle imported input.xxx(...) call
+        if isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name):
+            return node.func.value.id == 'input'
+
+        return False
 
     def visit_arguments(self, node: ast.arguments) -> ast.arguments:
         """Add _id to input calls in function arguments and collect source vars"""
@@ -57,30 +62,48 @@ class InputTransformer(ast.NodeTransformer):
                     is_input_call = False
 
                     if isinstance(default.func, ast.Attribute) and default.func.attr == 'source':
-                        # This is lib.input.source call
+                        # This is lib.input.source or input.source call
                         is_source_call = True
                     elif isinstance(default.func, ast.Attribute) and default.func.attr == 'input':
                         # This is lib.input call
                         is_input_call = True
+                    elif isinstance(default.func, ast.Name) and default.func.id == 'input':
+                        # This is imported input() call - check if defval is a source
+                        is_input_call = True
 
-                    # Only proceed if it's a source call or input call with arguments
-                    if (is_source_call or is_input_call) and default.args:
-                        if isinstance(default.args[0], ast.Constant) and is_source_call:
+                    # Find the defval parameter value (either positional or keyword)
+                    defval_node = None
+                    if default.args:
+                        defval_node = default.args[0]
+                    else:
+                        # Look for defval keyword argument
+                        for kw in default.keywords:
+                            if kw.arg == 'defval':
+                                defval_node = kw.value
+                                break
+
+                    # Only proceed if it's a source call or input call with a defval
+                    if (is_source_call or is_input_call) and defval_node:
+                        source_name = None
+                        
+                        if isinstance(defval_node, ast.Constant) and is_source_call:
                             # Handle string constant in lib.input.source
-                            if self.current_function not in self.function_source_vars:
-                                self.function_source_vars[self.current_function] = {}
-                            self.function_source_vars[self.current_function][arg.arg] = cast(ast.Constant,
-                                                                                             default.args[0]).value
-                            self.has_source_inputs = True
-                        elif isinstance(default.args[0], ast.Attribute):
-                            # Handle attribute reference (e.g., lib.close)
-                            attr = cast(ast.Attribute, default.args[0])
+                            source_name = cast(ast.Constant, defval_node).value
+                        elif isinstance(defval_node, ast.Attribute):
+                            # Handle attribute reference (e.g., lib.close or close)
+                            attr = cast(ast.Attribute, defval_node)
                             if isinstance(attr.value, ast.Name) and attr.value.id == 'lib':
                                 # For lib.xxx pattern, store the attribute name
-                                if self.current_function not in self.function_source_vars:
-                                    self.function_source_vars[self.current_function] = {}
-                                self.function_source_vars[self.current_function][arg.arg] = attr.attr
-                                self.has_source_inputs = True
+                                source_name = attr.attr
+                        elif isinstance(defval_node, ast.Name):
+                            # Handle direct name reference (e.g., close)
+                            source_name = defval_node.id
+
+                        if source_name:
+                            if self.current_function not in self.function_source_vars:
+                                self.function_source_vars[self.current_function] = {}
+                            self.function_source_vars[self.current_function][arg.arg] = source_name
+                            self.has_source_inputs = True
 
         return node
 

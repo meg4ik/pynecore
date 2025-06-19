@@ -350,8 +350,11 @@ class ScriptRunner:
             # Close the equity writer
             if self.equity_writer:
                 self.equity_writer.close()
+
             # Reset library variables
             _reset_lib_vars(lib)
+            # Reset function isolation
+            function_isolation.reset()
 
     def run(self, on_progress: Callable[[datetime], None] | None = None):
         """

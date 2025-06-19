@@ -506,6 +506,8 @@ class _Input:
         :return: The input value from toml file or the default
         """
         input_type = type(defval).__name__.lower()
+        if input_type == 'source':
+            defval = str(defval)
         inputs[_id] = InputData(
             id=_id,
             input_type=input_type,
@@ -516,7 +518,7 @@ class _Input:
             group=group,
             display=display,
         )
-        return defval if _id not in old_input_values else safe_convert.safe_int(old_input_values[_id])
+        return defval if _id not in old_input_values else old_input_values[_id]
 
     @classmethod
     def _int(cls, defval: int, title: str | None = None, *,
@@ -720,6 +722,7 @@ class _Input:
         :param _id: The unique identifier of the input, it is filled by the InputTransformer
         :return: The input value from toml file or the default
         """
+        defval = str(defval)
         inputs[_id] = InputData(
             id=_id,
             input_type='source',

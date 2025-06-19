@@ -276,7 +276,9 @@ def change(source: Series[TFIB], length: int = 1) -> TFIB | NA[TFIB]:
     assert length > 0, "Invalid length, length must be greater than 0!"
     length = int(length)
 
-    source = round(source, 14)  # We need to round to prevent problems caused by floating point precision
+    # We need to round to prevent problems caused by floating point precision
+    if isinstance(source, (float, int)):
+        source = round(source, 14)
     prev_val = source[length]
 
     if isinstance(source, NA) or isinstance(prev_val, NA):
@@ -1395,7 +1397,7 @@ def sar(start: float = 0.02, inc: float = 0.02, max: float = 0.2) -> float | NA[
     if bar_index == 0:
         return NA(float)
 
-    # Persistent state
+    # Persistent states
     pos_long: Persistent[bool] = True  # Current position (long/short)
     af: Persistent[float] = start  # Current acceleration factor
     sar_val: Persistent[float] = NA(float)  # Current SAR value
@@ -1405,46 +1407,66 @@ def sar(start: float = 0.02, inc: float = 0.02, max: float = 0.2) -> float | NA[
     if bar_index == 1:
         if high[1] > high:
             pos_long = False
-            sar_val = high[1]  # Start short: SAR above the high
+            sar_val = high[1]  # short start
             ep = low  # EP is current low
         else:
             pos_long = True
-            sar_val = low[1]  # Start long: SAR below the low
+            sar_val = low[1]  # long start
             ep = high  # EP is current high
         return sar_val
 
-    # Calculate new SAR value
+    # Calculate next SAR value
     next_sar = sar_val + af * (ep - sar_val)
 
-    # Check for position change
+    # Trend-dependent logic
     if pos_long:
-        # In long position
-        if low <= next_sar:
-            # Reverse to short
+        # Long trend
+        if low <= next_sar:  # Reverse to short
             pos_long = False
-            next_sar = builtins.max(high, ep)  # SAR must be above current and prev highs
-            ep = low  # New EP is current low
-            af = start  # Reset acceleration
+            af = start
+            next_sar = ep  # Start from previous EP (Wilder method)
+            # Clip to current and previous 2 candle highs
+            next_sar = builtins.max(
+                next_sar,
+                high,
+                high[1],
+                high[2] if not isinstance(high[2], NA) else high[1]
+            )
+            ep = low  # New EP
         else:
             # Continue long
-            next_sar = builtins.min(next_sar, low[1], low[2] if not isinstance(low[2], NA) else low[1])
-            if high > ep:  # New high reached
-                ep = high  # Update EP
-                af = builtins.min(af + inc, max)  # Increase acceleration
+            next_sar = builtins.min(
+                next_sar,
+                low[1],
+                low[2] if not isinstance(low[2], NA) else low[1]
+            )
+            if high > ep:  # New peak
+                ep = high
+                af = builtins.min(af + inc, max)
     else:
-        # In short position
-        if high >= next_sar:
-            # Reverse to long
+        # Short trend
+        if high >= next_sar:  # Reverse to long
             pos_long = True
-            next_sar = builtins.min(low, ep)  # SAR must be below current and prev lows
-            ep = high  # New EP is current high
-            af = start  # Reset acceleration
+            af = start
+            next_sar = ep  # Start from previous EP (Wilder method)
+            # Clip to current and previous 2 candle lows
+            next_sar = builtins.min(
+                next_sar,
+                low,
+                low[1],
+                low[2] if not isinstance(low[2], NA) else low[1]
+            )
+            ep = high  # New EP
         else:
             # Continue short
-            next_sar = builtins.max(next_sar, high[1], high[2] if not isinstance(high[2], NA) else high[1])
-            if low < ep:  # New low reached
-                ep = low  # Update EP
-                af = builtins.min(af + inc, max)  # Increase acceleration
+            next_sar = builtins.max(
+                next_sar,
+                high[1],
+                high[2] if not isinstance(high[2], NA) else high[1]
+            )
+            if low < ep:  # New trough
+                ep = low
+                af = builtins.min(af + inc, max)
 
     sar_val = next_sar
     return cast(float | NA[float], sar_val)

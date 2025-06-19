@@ -3,6 +3,9 @@ Builtin library of Pyne
 """
 from typing import TYPE_CHECKING, TypeAlias, Any, Callable
 
+if TYPE_CHECKING:
+    from ..types.session import SessionInfo
+
 import sys
 
 from functools import lru_cache
@@ -17,9 +20,12 @@ from ..types.series import Series
 from ..types.na import NA
 from . import syminfo  # This should be imported before core.datetime to avoid circular import!
 from . import barstate, string, log, math, plot, hline, linefill, alert
+from . import timeframe as timeframe_module
+from . import session as session_module
 
 from pynecore.core.overload import overload
 from pynecore.core.datetime import parse_datestring as _parse_datestring, parse_timezone as _parse_timezone
+from ..core.resampler import Resampler
 
 __all__ = [
     # Other modules
@@ -46,7 +52,7 @@ __all__ = [
 
     # Module properties
     'dayofmonth', 'dayofweek', 'hour', 'minute', 'month', 'second', 'weekofyear', 'year',
-    'time', 'na',
+    'time', 'time_close', 'na',
 ]
 
 #
@@ -125,7 +131,7 @@ def _get_dt(time: int | None = None, timezone: str | None = None) -> datetime:
 
 @lru_cache(maxsize=1024)
 @overload
-def timestamp(date_string: DateStr) -> int:  # type: ignore  # It is more pythonic, but not supported by Pine Script
+def timestamp(date_string: DateStr) -> int:  # It is more pythonic, but not supported by Pine Script
     """
     Parse date string and return UNIX timestamp in milliseconds
 
@@ -144,7 +150,7 @@ def timestamp(date_string: DateStr) -> int:  # type: ignore  # It is more python
 
 # noinspection PyPep8Naming
 @overload
-def timestamp(dateString: DateStr) -> int:  # type: ignore
+def timestamp(dateString: DateStr) -> int:
     """
     Parse date string and return UNIX timestamp in milliseconds
 
@@ -163,27 +169,8 @@ def timestamp(dateString: DateStr) -> int:  # type: ignore
 
 # noinspection PyShadowingNames
 @overload
-def timestamp(year: int, month: int, day: int, hour: int = 0, minute: int = 0, second: int = 0) -> int:  # type: ignore
-    """
-    Create timestamp from date/time components:
-    - timestamp(2020, 2, 20, 15, 30)          # From components
-    - timestamp(2020, 2, 20, 15, 30, 0)       # With seconds
-
-    :param year: Year
-    :param month: Month
-    :param day: Day
-    :param hour: Hour
-    :param minute: Minute
-    :param second: Second
-    :return: UNIX timestamp in milliseconds
-    """
-    return timestamp(None, year=year, month=month, day=day, hour=hour, minute=minute, second=second)
-
-
-# noinspection PyShadowingNames
-@overload
-def timestamp(timezone: TimezoneStr | None, year: int, month: int, day: int,
-              hour: int = 0, minute: int = 0, second: int = 0) -> int:
+def timestamp(timezone: TimezoneStr | None, year: int | float, month: int | float, day: int | float,
+              hour: int | float = 0, minute: int | float = 0, second: int | float = 0) -> int:
     """
     Create timestamp from date/time components with timezone:
     - timestamp("UTC-5", 2020, 2, 20, 15, 30)
@@ -199,8 +186,28 @@ def timestamp(timezone: TimezoneStr | None, year: int, month: int, day: int,
     :return: UNIX timestamp in milliseconds
     """
     tz = _parse_timezone(timezone)
-    dt = datetime(year, month, day, hour, minute, second, tzinfo=tz)
+    dt = datetime(int(year), int(month), int(day), int(hour), int(minute), int(second), tzinfo=tz)
     return int(dt.timestamp() * 1000)
+
+
+# noinspection PyShadowingNames
+@overload
+def timestamp(year: int | float, month: int | float, day: int | float, hour: int | float = 0,
+              minute: int | float = 0, second: int | float = 0) -> int:
+    """
+    Create timestamp from date/time components:
+    - timestamp(2020, 2, 20, 15, 30)          # From components
+    - timestamp(2020, 2, 20, 15, 30, 0)       # With seconds
+
+    :param year: Year
+    :param month: Month
+    :param day: Day
+    :param hour: Hour
+    :param minute: Minute
+    :param second: Second
+    :return: UNIX timestamp in milliseconds
+    """
+    return timestamp(None, year=year, month=month, day=day, hour=hour, minute=minute, second=second)
 
 
 ### Plotting ###
@@ -388,12 +395,259 @@ def second(time: int | None = None, timezone: str | None = None) -> int:
     return _get_dt(time, timezone).second
 
 
+### Session parsing and validation helpers ###
+
+def _parse_session_string(session: str, timezone: str | None = None) -> 'SessionInfo':
+    """
+    Parse a session string into a SessionInfo object.
+
+    :param session: Session string (e.g., "0930-1600", "0930-1600:23456", "0000-0000:1234567")
+    :param timezone: Timezone string, defaults to exchange timezone if None
+    :return: SessionInfo object
+    :raises ValueError: If session string is invalid
+    """
+    from ..types.session import SessionInfo
+    from datetime import time as dt_time
+
+    if not session or session.strip() == "":
+        raise ValueError("Session string cannot be empty")
+
+    # Use exchange timezone if not specified
+    if timezone is None:
+        # Use a safe default if syminfo.timezone is not available
+        timezone = getattr(syminfo, 'timezone', 'UTC')
+        # Handle NA values
+        if hasattr(timezone, '__class__') and 'NA' in timezone.__class__.__name__:
+            timezone = 'UTC'
+
+    # Split session and days if present
+    if ':' in session:
+        time_part, days_part = session.split(':', 1)
+    else:
+        time_part = session
+        # Default days in Pine Script v5 is all days (1234567)
+        days_part = "1234567"
+
+    # Parse time part (HHMM-HHMM format)
+    if '-' not in time_part:
+        raise ValueError(f"Invalid session format: {session}. Expected HHMM-HHMM format")
+
+    start_str, end_str = time_part.split('-', 1)
+
+    if len(start_str) != 4 or len(end_str) != 4:
+        raise ValueError(f"Invalid time format in session: {session}. Expected HHMM-HHMM")
+
+    try:
+        start_hour = int(start_str[:2])
+        start_minute = int(start_str[2:])
+        end_hour = int(end_str[:2])
+        end_minute = int(end_str[2:])
+
+        # Validate time values
+        if not (0 <= start_hour <= 23 and 0 <= start_minute <= 59):
+            raise ValueError(f"Invalid start time: {start_str}")
+        if not (0 <= end_hour <= 23 and 0 <= end_minute <= 59):
+            raise ValueError(f"Invalid end time: {end_str}")
+
+        start_time = dt_time(start_hour, start_minute)
+        end_time = dt_time(end_hour, end_minute)
+
+    except ValueError as e:
+        raise ValueError(f"Invalid time values in session: {session}") from e
+
+    # Parse days (1=Sunday, 2=Monday, ..., 7=Saturday)
+    try:
+        days = set()
+        for day_char in days_part:
+            day_num = int(day_char)
+            if not 1 <= day_num <= 7:
+                raise ValueError(f"Invalid day: {day_num}")
+            days.add(day_num)
+    except ValueError as e:
+        raise ValueError(f"Invalid days specification: {days_part}") from e
+
+    return SessionInfo(
+        start_time=start_time,
+        end_time=end_time,
+        days=days,
+        timezone=timezone
+    )
+
+
+def _is_bar_in_session(bar_time_ms: int, session_info: 'SessionInfo', timeframe: str) -> bool:
+    """
+    Check if a bar time falls within the specified session.
+
+    :param bar_time_ms: Bar time in milliseconds (UNIX timestamp)
+    :param session_info: Session information
+    :param timeframe: Timeframe string for calculating bar duration
+    :return: True if bar is within session, False otherwise
+    """
+    from datetime import datetime, timedelta
+
+    # Convert bar time to datetime in session timezone
+    bar_dt = datetime.fromtimestamp(bar_time_ms / 1000)
+    session_tz = _parse_timezone(session_info.timezone)
+    bar_dt_local = bar_dt.astimezone(session_tz)
+
+    # Get the day of week in TradingView format (1=Sunday, 2=Monday, ..., 7=Saturday)
+    # Python weekday: 0=Monday, 6=Sunday
+    python_weekday = bar_dt_local.weekday()
+    tv_weekday = (python_weekday + 2) % 7
+    if tv_weekday == 0:
+        tv_weekday = 7
+
+    # Check if the day is in the session days
+    if tv_weekday not in session_info.days:
+        return False
+
+    # Get bar time components
+    bar_time = bar_dt_local.time()
+
+    # Get timeframe duration for checking bar overlap
+    try:
+        tf_seconds = timeframe_module.in_seconds(timeframe)
+    except (ValueError, AssertionError):
+        # If timeframe is invalid, assume 1-minute bars
+        tf_seconds = 60
+
+    # Calculate bar end time
+    bar_end_dt = bar_dt_local + timedelta(seconds=tf_seconds)
+    bar_end_time = bar_end_dt.time()
+
+    # Handle overnight sessions
+    if session_info.is_overnight:
+        # Session spans midnight (e.g., 22:00-06:00)
+        # Bar is in session if it starts after session start OR ends before session end
+        in_session = (bar_time >= session_info.start_time or
+                      bar_end_time <= session_info.end_time)
+    else:
+        # Normal session within same day
+        # Bar is in session if it overlaps with the session time range
+        # Bar overlaps if: bar_start < session_end AND bar_end > session_start
+        in_session = (bar_time < session_info.end_time and
+                      bar_end_time > session_info.start_time)
+
+    return in_session
+
+
 @module_property
-def time(timeframe: str | None = None, *_, **__) -> int:
+def time(timeframe: str | None = None, session: str | None = None, timezone: str | None = None) -> int | NA[int]:
+    """
+    The time function returns the UNIX time of the current bar for the specified timeframe
+    and session or NA if the time point is out of session.
+
+    Usage examples:
+    - time() - Current bar time
+    - time("60") - Current 1-hour bar start time
+    - time("1D", "0930-1600") - Daily bar time if within session
+    - time("60", "0930-1600:23456", "America/New_York") - With timezone
+
+    :param timeframe: The timeframe to get the time for (e.g., "D", "60", "240").
+                     If None, returns current bar time.
+    :param session: Session specification string (e.g., "0930-1600", "0000-0000:23456").
+                   Format: "HHMM-HHMM" or "HHMM-HHMM:days" where days are 1234567 (1=Sun, 7=Sat)
+    :param timezone: Timezone for the session (e.g., "GMT+2", "America/New_York").
+                    If None, uses exchange timezone.
+    :return: UNIX time in milliseconds or NA if bar is outside session or invalid parameters
+    """
     if timeframe is None:
         return _time
-    raise NotImplementedError("The time() function is not fully implemented yet!")
-    # TODO: Implement time function
+
+    # Get resampler for the requested timeframe
+    try:
+        resampler = Resampler.get_resampler(timeframe)
+    except ValueError:
+        # Invalid timeframe
+        return NA(int)
+
+    # Get the current bar time for the requested timeframe
+    current_time_ms = _time
+    bar_time = resampler.get_bar_time(current_time_ms)
+
+    if session is None:
+        # No session specified, return the bar time
+        return bar_time
+
+    # Parse session string
+    try:
+        session_info = _parse_session_string(session, timezone)
+    except ValueError:
+        # Invalid session string
+        return NA(int)
+
+    # Check if the bar is within the session
+    try:
+        if _is_bar_in_session(bar_time, session_info, timeframe):
+            return bar_time
+        else:
+            return NA(int)
+    except Exception:  # noqa
+        # Error during session validation
+        return NA(int)
+
+
+@module_property
+def time_close(timeframe: str | None = None, session: str | None = None, timezone: str | None = None) -> int | NA[int]:
+    """
+    The time_close function returns the UNIX time of the current bar's close for the specified timeframe
+    and session or NA if the time point is outside the session.
+
+    Usage examples:
+    - time_close() - Current bar close time
+    - time_close("60") - Current 1-hour bar close time
+    - time_close("1D", "0930-1600") - Daily bar close time if within session
+    - time_close("60", "0930-1600:23456", "America/New_York") - With timezone
+
+    :param timeframe: The timeframe to get the close time for (e.g., "D", "60", "240").
+                     If None, returns current bar close time.
+    :param session: Session specification string (e.g., "0930-1600", "0000-0000:23456").
+                   Format: "HHMM-HHMM" or "HHMM-HHMM:days" where days are 1234567 (1=Sun, 7=Sat)
+    :param timezone: Timezone for the session (e.g., "GMT+2", "America/New_York").
+                    If None, uses exchange timezone.
+    :return: UNIX time in milliseconds of bar close or NA if bar is outside session or invalid parameters
+    """
+    if timeframe is None:
+        return _time
+
+    # Get resampler for the requested timeframe
+    try:
+        resampler = Resampler.get_resampler(timeframe)
+    except ValueError:
+        # Invalid timeframe
+        return NA(int)
+
+    # Get the current bar time for the requested timeframe
+    current_time_ms = _time
+    bar_start_time = resampler.get_bar_time(current_time_ms)
+
+    # Calculate bar close time by adding timeframe duration
+    try:
+        tf_seconds = timeframe_module.in_seconds(timeframe)
+        bar_close_time = bar_start_time + (tf_seconds * 1000)  # Convert to milliseconds
+    except (ValueError, AssertionError):
+        return NA(int)
+
+    if session is None:
+        # No session specified, return the bar close time
+        return bar_close_time
+
+    # Parse session string
+    try:
+        session_info = _parse_session_string(session, timezone)
+    except ValueError:
+        # Invalid session string
+        return NA(int)
+
+    # Check if the bar is within the session (using bar start time for session validation)
+    try:
+        if _is_bar_in_session(bar_start_time, session_info, timeframe):
+            return bar_close_time
+        else:
+            return NA(int)
+    except Exception:  # noqa
+        # Error during session validation
+        return NA(int)
 
 
 # noinspection PyShadowingNames
