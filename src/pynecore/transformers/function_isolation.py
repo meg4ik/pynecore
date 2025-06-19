@@ -15,7 +15,7 @@ from ..utils.stdlib_checker import stdlib_checker
 NON_TRANSFORMABLE_FUNCTIONS = {
     # Plot and display related
     'lib.plot', 'lib.plotchar', 'lib.plotshape', 'lib.plotarrow',
-    'lib.label', 'lib.table', 'lib.box', 'lib.line', 'lib.hline', 'lib.vline',
+    'lib.label', 'lib.table', 'lib.box', 'lib.line', 'lib.hline',
     'lib.fill', 'lib.bgcolor', 'lib.barcolor', 'lib.plotcandle',
     'lib.alert', 'lib.alertcondition', 'lib.na',
 
@@ -74,7 +74,7 @@ NON_TRANSFORMABLE_FUNCTIONS = {
 
     # Other
     'lib.max_bars_back',
-    
+
     'copy', 'dataclass', 'dccopy',
     'pytest.raises',
 
@@ -235,8 +235,8 @@ class FunctionIsolationTransformer(ast.NodeTransformer):
         # First, check if there's a docstring
         insert_pos = 0
         if (node.body and isinstance(node.body[0], ast.Expr) and
-                isinstance(node.body[0].value, ast.Constant) and
-                isinstance(node.body[0].value.value, str)):
+                isinstance(cast(ast.Expr, node.body[0]).value, ast.Constant) and
+                isinstance(cast(ast.Constant, cast(ast.Expr, node.body[0]).value).value, str)):
             insert_pos = 1
 
         # Then find the last import statement after docstring
@@ -337,8 +337,8 @@ class FunctionIsolationTransformer(ast.NodeTransformer):
 
             # Check for docstring
             if (node.body and isinstance(node.body[0], ast.Expr) and
-                    isinstance(node.body[0].value, ast.Constant) and
-                    isinstance(node.body[0].value.value, str)):
+                    isinstance(cast(ast.Expr, node.body[0]).value, ast.Constant) and
+                    isinstance(cast(ast.Constant, cast(ast.Expr, node.body[0]).value).value, str)):
                 insert_pos = 1
 
             global_stmt = ast.Global(names=['__scope_id__'])

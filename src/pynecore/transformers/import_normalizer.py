@@ -3,11 +3,8 @@ from typing import Dict, Set, List, Optional, cast
 
 NON_MODULE_ATTRS = {
     'alert',  # class
-    'box',  # class
-    'hline',  # class
     'input',  # class
-    'line',  # class
-    'plot',  # class
+    'linefill',  # class
     'script',  # class
     'table',  # class
 }

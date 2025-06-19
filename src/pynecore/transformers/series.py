@@ -21,6 +21,19 @@ class SeriesTransformer(ast.NodeTransformer):
 
         # Import tracking
         self.has_series_import: bool = False
+        
+        # Track max_bars_back transformations to handle in visit_Expr
+        self.pending_max_bars_back: Dict[ast.Call, Dict[str, any]] = {}
+
+    @staticmethod
+    def _create_assign_with_lineno(targets, value, lineno=None, col_offset=None):
+        """Create an ast.Assign node with proper line number information"""
+        assign_node = ast.Assign(targets=targets, value=value)
+        if lineno is not None:
+            assign_node.lineno = lineno
+        if col_offset is not None:
+            assign_node.col_offset = col_offset
+        return assign_node
 
     def _register_series(self, var_name: str, scope: str | None = None) -> str:
         """
@@ -109,7 +122,7 @@ class SeriesTransformer(ast.NodeTransformer):
             function_vars_dict['main'] = [series_name for _, series_name in main_vars.items()]
 
         # Create the function variable registry
-        function_vars_assign = ast.Assign(
+        function_vars_assign = self._create_assign_with_lineno(
             targets=[ast.Name(id='__series_function_vars__', ctx=ast.Store())],
             value=ast.Dict(
                 keys=[ast.Constant(value=k) for k in function_vars_dict],
@@ -120,7 +133,8 @@ class SeriesTransformer(ast.NodeTransformer):
                     )
                     for vars in function_vars_dict.values()
                 ]
-            )
+            ),
+            lineno=1
         )
 
         # Create SeriesImpl import and instances
@@ -133,13 +147,14 @@ class SeriesTransformer(ast.NodeTransformer):
         ]
 
         assignments = [
-            ast.Assign(
+            self._create_assign_with_lineno(
                 targets=[ast.Name(id=name, ctx=ast.Store())],
                 value=ast.Call(
                     func=ast.Name(id='SeriesImpl', ctx=ast.Load()),
                     args=[],
                     keywords=[]
-                )
+                ),
+                lineno=1
             )
             for name in sorted(self.collected_series)
         ]
@@ -208,7 +223,7 @@ class SeriesTransformer(ast.NodeTransformer):
                     arg.annotation = None
                 # Create initialization statement
                 series_initializations.append(
-                    ast.Assign(
+                    self._create_assign_with_lineno(
                         targets=[ast.Name(id=arg.arg, ctx=ast.Store())],
                         value=ast.Call(
                             func=ast.Attribute(
@@ -218,7 +233,8 @@ class SeriesTransformer(ast.NodeTransformer):
                             ),
                             args=[ast.Name(id=arg.arg, ctx=ast.Load())],
                             keywords=[]
-                        )
+                        ),
+                        lineno=node.lineno if hasattr(node, 'lineno') else 1
                     )
                 )
 
@@ -265,7 +281,7 @@ class SeriesTransformer(ast.NodeTransformer):
                 return None
 
             # First assignment uses add()
-            return ast.Assign(
+            return self._create_assign_with_lineno(
                 targets=[ast.Name(id=var_name, ctx=ast.Store())],
                 value=ast.Call(
                     func=ast.Attribute(
@@ -275,7 +291,9 @@ class SeriesTransformer(ast.NodeTransformer):
                     ),
                     args=[self.visit(cast(ast.AST, node.value))],
                     keywords=[]
-                )
+                ),
+                lineno=node.lineno if hasattr(node, 'lineno') else 1,
+                col_offset=node.col_offset if hasattr(node, 'col_offset') else 0
             )
 
         return self.generic_visit(node)
@@ -298,7 +316,7 @@ class SeriesTransformer(ast.NodeTransformer):
 
         if series_name:
             # Regular assignment uses set()
-            return ast.Assign(
+            return self._create_assign_with_lineno(
                 targets=[ast.Name(id=var_name, ctx=ast.Store())],
                 value=ast.Call(
                     func=ast.Attribute(
@@ -308,7 +326,9 @@ class SeriesTransformer(ast.NodeTransformer):
                     ),
                     args=[self.visit(cast(ast.AST, node.value))],
                     keywords=[]
-                )
+                ),
+                lineno=node.lineno if hasattr(node, 'lineno') else 1,
+                col_offset=node.col_offset if hasattr(node, 'col_offset') else 0
             )
 
         return self.generic_visit(node)
@@ -331,7 +351,7 @@ class SeriesTransformer(ast.NodeTransformer):
 
         if series_name:
             # Convert augmented assignment to set() with operation
-            return ast.Assign(
+            return self._create_assign_with_lineno(
                 targets=[ast.Name(id=var_name, ctx=ast.Store())],
                 value=ast.Call(
                     func=ast.Attribute(
@@ -347,7 +367,9 @@ class SeriesTransformer(ast.NodeTransformer):
                         )
                     ],
                     keywords=[]
-                )
+                ),
+                lineno=node.lineno if hasattr(node, 'lineno') else 1,
+                col_offset=node.col_offset if hasattr(node, 'col_offset') else 0
             )
 
         return self.generic_visit(node)
@@ -439,18 +461,53 @@ class SeriesTransformer(ast.NodeTransformer):
                 series_name = self._get_series_in_current_scope(var_name)
 
                 if series_name:
-                    # Transform to: __series_name__.max_bars_back = value
-                    return cast(ast.AST, ast.Assign(
+                    # Mark this call for transformation in visit_Expr
+                    self.pending_max_bars_back[node] = {
+                        'series_name': series_name,
+                        'value': node.args[1],
+                        'lineno': getattr(node, 'lineno', 1),
+                        'col_offset': getattr(node, 'col_offset', 0)
+                    }
+                    # Return a placeholder None (max_bars_back returns None)
+                    placeholder = ast.Constant(value=None)
+                    if hasattr(node, 'lineno'):
+                        placeholder.lineno = node.lineno
+                    if hasattr(node, 'col_offset'):
+                        placeholder.col_offset = node.col_offset
+                    return cast(ast.AST, placeholder)
+
+        return node
+
+    def visit_Expr(self, node: ast.Expr) -> ast.AST:
+        """
+        Handle expression statements, particularly for max_bars_back transformations.
+        """
+        # Visit the expression first
+        node = cast(ast.Expr, self.generic_visit(node))
+        
+        # Check if this expression is a pending max_bars_back transformation
+        if isinstance(node.value, ast.Constant) and node.value.value is None:
+            # Look for the original call in pending transformations
+            for original_call, transform_info in self.pending_max_bars_back.items():
+                # This is a bit hacky, but we need to match the transformed placeholder
+                # Since we replaced the call with Constant(None), we check line numbers
+                if (hasattr(node.value, 'lineno') and hasattr(original_call, 'lineno') and
+                    node.value.lineno == original_call.lineno):
+                    # Replace the Expr with an Assign
+                    assign_node = self._create_assign_with_lineno(
                         targets=[
                             ast.Attribute(
-                                value=ast.Name(id=series_name, ctx=ast.Load()),
+                                value=ast.Name(id=transform_info['series_name'], ctx=ast.Load()),
                                 attr='max_bars_back',
                                 ctx=ast.Store()
                             )
                         ],
-                        value=node.args[1]  # Already visited above
-                    ))
-
+                        value=transform_info['value'],
+                        lineno=transform_info['lineno'],
+                        col_offset=transform_info['col_offset']
+                    )
+                    return cast(ast.AST, assign_node)
+        
         return node
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> ast.AST | None:
