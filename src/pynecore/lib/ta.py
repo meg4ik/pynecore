@@ -179,13 +179,10 @@ def alma(source: Series[float], length: int, offset: float = 0.85, sigma: float 
         norm = sum(weights)
 
     # Vectorized calculation using dot product
-    try:
-        summ = 0.0
-        for i, w in enumerate(weights):
-            summ += w * source[i]
-        return summ / norm
-    except ZeroDivisionError:
-        return source
+    summ = 0.0
+    for i, w in enumerate(weights):
+        summ += w * source[i]
+    return summ / norm
 
 
 def atr(length: int) -> float | NA[float]:
@@ -290,7 +287,7 @@ def change(source: Series[TFIB], length: int = 1) -> TFIB | NA[TFIB]:
     return source != prev_val
 
 
-def cmo(source: float, length: int) -> float | NA:
+def cmo(source: float, length: int) -> float | NA[float]:
     """
     Calculate the Chande Momentum Oscillator (CMO) of the source series with the given length.
 
@@ -298,17 +295,12 @@ def cmo(source: float, length: int) -> float | NA:
     :param length: The length of the CMO
     :return: The Chande Momentum Oscillator (CMO) of the source series
     """
-    last_source: Persistent = NA(float)
-    momentum = source - last_source
-    last_source = source  # noqa
+    momentum = change(source)
     if isinstance(momentum, NA):
-        return NA(float)
+        return momentum
     sum1 = lib_math.sum(momentum if momentum >= 0.0 else 0.0, length)
     sum2 = lib_math.sum(0.0 if momentum >= 0.0 else -momentum, length)
-    try:
-        return 100 * (sum1 - sum2) / (sum1 + sum2)
-    except ZeroDivisionError:
-        return NA(float)
+    return 100 * (sum1 - sum2) / (sum1 + sum2)
 
 
 # noinspection PyUnusedLocal,PyShadowingBuiltins
@@ -341,11 +333,7 @@ def cog(source: Series[float], length: int) -> float | NA[float]:
         new_summ = summ + source - source[length]
         weighted_summ = weighted_summ + summ - length * source[length]
         summ = new_summ
-    try:
-        val = -weighted_summ / summ - 1.0
-    except ZeroDivisionError:
-        val = NA(float)
-
+    val = -weighted_summ / summ - 1.0
     return val
 
 
@@ -397,7 +385,7 @@ def correlation(source1: Series[float], source2: Series[float], length: int) -> 
         numerator = (length * sum_xy) - (sum_x * sum_y)
         denominator = math.sqrt((length * sum_x2 - sum_x * sum_x) * (length * sum_y2 - sum_y * sum_y))
         return numerator / denominator
-    except (ZeroDivisionError, ValueError):
+    except ValueError:
         return NA(float)
 
 
@@ -495,12 +483,8 @@ def dmi(diLength: int, adxSmoothing: int) -> tuple[float | NA, float | NA, float
     """
     assert diLength > 0, "Invalid DI length, DI length must be greater than 0!"
     assert adxSmoothing > 0, "Invalid ADX smoothing, ADX smoothing must be greater than 0!"
-    last_high: Persistent[float] = NA(float)
-    last_low: Persistent[float] = NA(float)
-    up = high - last_high
-    down = last_low - low
-    last_high = high  # noqa
-    last_low = low  # noqa
+    up = change(high)
+    down = -change(low)
     if isinstance(up, NA) or isinstance(down, NA):
         return NA(float), NA(float), NA(float)
     a = atr(diLength)
@@ -669,10 +653,7 @@ def iii() -> float | Series[float] | NA[float]:
 
     :return: Intraday Intensity Index
     """
-    try:
-        return (2 * close - high - low) / ((high - low) * volume)
-    except ZeroDivisionError:
-        return NA(float)
+    return (2 * close - high - low) / ((high - low) * volume)
 
 
 # noinspection PyPep8Naming
@@ -762,16 +743,13 @@ def linreg(source: Series[float], length: int, offset: int) -> float | Series[fl
         sum_y = prev_sum_y + source - dropped_value
         sum_xy = (window_size - 1) * source + sum_xy - prev_sum_y + dropped_value
 
-    try:
-        # Compute slope and intercept
-        denominator = window_size * sum_x2 - sum_x * sum_x
-        slope = (window_size * sum_xy - sum_x * sum_y) / denominator
-        intercept = (sum_y - slope * sum_x) / window_size
+    # Compute slope and intercept
+    denominator = window_size * sum_x2 - sum_x * sum_x
+    slope = (window_size * sum_xy - sum_x * sum_y) / denominator
+    intercept = (sum_y - slope * sum_x) / window_size
 
-        # Compute final regression value
-        return intercept + slope * ((window_size - 1) - offset)
-    except ZeroDivisionError:
-        return NA(float)
+    # Compute final regression value
+    return intercept + slope * ((window_size - 1) - offset)
 
 
 # noinspection PyUnusedLocal
@@ -956,17 +934,12 @@ def mfi(source: float, length: int) -> float | NA[float]:
         return NA(float)
     length = int(length)
 
-    last_source: Persistent = NA(float)
-    chg = source - last_source
-    last_source = source  # noqa
-    upper = lib_math.sum(volume * (0.0 if chg is not NA(float) and chg <= 0 else source), length)
-    lower = lib_math.sum(volume * (0.0 if chg is not NA(float) and chg >= 0 else source), length)
+    chg = change(source)
+    upper = lib_math.sum(volume * (0.0 if not isinstance(chg, NA) and chg <= 0 else source), length)
+    lower = lib_math.sum(volume * (0.0 if not isinstance(chg, NA) and chg >= 0 else source), length)
     if isinstance(upper, NA) or isinstance(lower, NA):
         return NA(float)
-    try:
-        return 100.0 - (100 * lower / (upper + lower))
-    except ZeroDivisionError:
-        return NA(float)
+    return 100.0 - (100 * lower / (upper + lower))
 
 
 # noinspection PyShadowingBuiltins
@@ -1066,9 +1039,7 @@ def obv() -> float | NA[float]:
 
     :return: On Balance Volume
     """
-    last_close: Persistent[float] = NA(float)
-    chg = close - last_close
-    last_close = close  # noqa
+    chg = change(close)
     if isinstance(chg, NA):
         return NA(float)
     if chg > 0:
@@ -1664,9 +1635,7 @@ def tsi(source: Series[float], short_length: int, long_length: int) -> float | N
         return NA(float)
 
     # Calculate momentum
-    last_source: Persistent = NA(float)
-    momentum = source - last_source
-    last_source = source  # noqa
+    momentum = change(source)
     if isinstance(momentum, NA):
         return NA(float)
 
