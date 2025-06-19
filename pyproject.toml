@@ -7,6 +7,9 @@ package-dir = { "pynecore" = "src/pynecore" }
 packages.find = { where = ["src"] }
 include-package-data = true
 
+[tool.setuptools.package-data]
+"pynecore" = ["*.pyi"]
+
 [tool.distutils]
 egg_info.egg_base = "build"
 

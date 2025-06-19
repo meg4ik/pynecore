@@ -32,6 +32,9 @@ def benchmark(
     This command runs a script multiple times to measure performance.
     By default, it uses demo.py and demo.ohlcv files from the workdir.
     """
+    assert script is not None
+    assert data is not None
+
     console = Console()
 
     # Process script path - use same logic as run command

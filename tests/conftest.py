@@ -284,7 +284,6 @@ def dummy_ohlcv_iter():
 
 @pytest.fixture(scope="function")
 def runner(script_path, module_key, syminfo) -> RunnerProtocol:
-    from importlib import reload
     # Remove module from sys.modules to be able to re-import it
     del sys.modules[module_key]
 
@@ -299,21 +298,6 @@ def runner(script_path, module_key, syminfo) -> RunnerProtocol:
                 setattr(syminfo, key, value)
 
         r = ScriptRunner(script_path, ohlcv_iter, syminfo)
-
-        # Reload fast_overload to drop its registry
-        reload(sys.modules['pynecore.core.overload'])
-
-        # Reload all pynecore.types modules, to reset auto-incremented enums
-        for name in sorted(list(sys.modules.keys())):
-            if name.startswith('pynecore.types') and name != 'pynecore.types' and name != 'pynecore.types.na':
-                reload(sys.modules[name])
-        reload(sys.modules['pynecore.types'])
-
-        # Reload all pynecore.lib modules
-        for name in sorted(list(sys.modules.keys())):
-            if name.startswith('pynecore.lib') and name != 'pynecore.lib':
-                reload(sys.modules[name])
-        reload(sys.modules['pynecore.lib'])
 
         return r
 
