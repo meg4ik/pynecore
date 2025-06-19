@@ -2,11 +2,8 @@ import ast
 from typing import Dict, Set, List, Optional, cast
 
 NON_MODULE_ATTRS = {
-    'alert',  # class
     'input',  # class
-    'linefill',  # class
     'script',  # class
-    'table',  # class
 }
 
 
