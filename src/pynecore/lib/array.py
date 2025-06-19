@@ -623,7 +623,7 @@ def range(id: list[Number]) -> Number:
     :param id: Input array
     :return: Range of the elements in the array
     """
-    return max(id) - min(id)
+    return cast(Number, max(id) - min(id))
 
 
 # noinspection PyShadowingBuiltins

@@ -401,7 +401,7 @@ def correlation(source1: Series[float], source2: Series[float], length: int) -> 
         return NA(float)
 
 
-def cross(source1: float, source2: float) -> bool:
+def cross(source1: float, source2: float) -> bool | NA[bool]:
     """
     Check if the source series crossed over or under the given series.
 
@@ -1156,7 +1156,7 @@ def pivothigh(source: float, leftbars: int, rightbars: int) -> float | NA[float]
         return NA(float)
 
     pivotrange = leftbars + rightbars + 1
-    ph, pi = highest(source, pivotrange, _tuple=True, _check_eq=True)
+    ph, pi = cast(tuple[float, int], highest(source, pivotrange, _tuple=True, _check_eq=True))
 
     if pi == -rightbars:
         return ph
@@ -1199,7 +1199,7 @@ def pivotlow(source: float, leftbars: int, rightbars: int) -> float | NA[float]:
         return NA(float)
 
     pivotrange = leftbars + rightbars + 1
-    pl, pi = lowest(source, pivotrange, _tuple=True, _check_eq=True)
+    pl, pi = cast(tuple[float, int], lowest(source, pivotrange, _tuple=True, _check_eq=True))
     if pi == -rightbars:
         return pl
 

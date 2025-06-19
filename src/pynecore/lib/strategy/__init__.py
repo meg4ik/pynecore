@@ -101,7 +101,7 @@ class Order:
 
     def __repr__(self):
         return f"Order(order_id={self.order_id}; exit_id={self.exit_id}; size={self.size}; type: {self.order_type}; " \
-               f"limit={self.limit}; stop={self.stop}; oca_name={self.oca_name}; comment={self.comment})"
+            f"limit={self.limit}; stop={self.stop}; oca_name={self.oca_name}; comment={self.comment})"
 
 
 class Trade:
@@ -139,22 +139,22 @@ class Trade:
 
         self.commission = commission
 
-        self.max_drawdown = 0.0
-        self.max_drawdown_percent = 0.0
-        self.max_runup = 0.0
-        self.max_runup_percent = 0.0
-        self.profit = 0.0
-        self.profit_percent = 0.0
+        self.max_drawdown: float | NA[float] = 0.0
+        self.max_drawdown_percent: float | NA[float] = 0.0
+        self.max_runup: float | NA[float] = 0.0
+        self.max_runup_percent: float | NA[float] = 0.0
+        self.profit: float | NA[float] = 0.0
+        self.profit_percent: float | NA[float] = 0.0
 
-        self.cum_profit = 0.0
-        self.cum_profit_percent = 0.0
-        self.cum_max_drawdown = 0.0
-        self.cum_max_runup = 0.0
+        self.cum_profit: float | NA[float] = 0.0
+        self.cum_profit_percent: float | NA[float] = 0.0
+        self.cum_max_drawdown: float | NA[float] = 0.0
+        self.cum_max_runup: float | NA[float] = 0.0
 
     def __repr__(self):
         return f"Trade(entry_id={self.entry_id}; size={self.size}; entry_bar_index: {self.entry_bar_index}; " \
-               f"entry_price={self.entry_price}; exit_price={self.exit_price}; commission={self.commission}; " \
-               f"entry_equity={self.entry_equity}; exit_equity={self.exit_equity}"
+            f"entry_price={self.entry_price}; exit_price={self.exit_price}; commission={self.commission}; " \
+            f"entry_equity={self.entry_equity}; exit_equity={self.exit_equity}"
 
     #
     # Support csv.DictWriter
@@ -180,10 +180,10 @@ class Position:
 
     This is the main class for strategies
     """
-    netprofit: float = 0.0
-    openprofit: float = 0.0
-    grossprofit: float = 0.0
-    grossloss: float = 0.0
+    netprofit: float | NA[float] = 0.0
+    openprofit: float | NA[float] = 0.0
+    grossprofit: float | NA[float] = 0.0
+    grossloss: float | NA[float] = 0.0
 
     orders: dict[str, Order]
 
@@ -200,7 +200,7 @@ class Position:
     sign: float = 0.0
     avg_price: float = 0.0
 
-    cum_profit: float = 0.0
+    cum_profit: float | NA[float] = 0.0
 
     def __init__(self):
         self.orders = {}
@@ -256,7 +256,7 @@ class Position:
         self.cum_profit = 0.0
 
     @property
-    def equity(self) -> float:
+    def equity(self) -> float | NA[float]:
         """ The current equity """
         assert lib._script is not None
         return lib._script.initial_capital + self.netprofit + self.openprofit
