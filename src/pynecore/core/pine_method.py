@@ -1,6 +1,7 @@
 from typing import Any, Callable
-from ..lib import array, matrix
+from ..lib import array, matrix, box, line
 from ..types.matrix import Matrix
+
 from .function_isolation import isolate_function
 
 __scope_id__ = ''
@@ -13,6 +14,31 @@ def method(func: Callable) -> Callable:
     """
     setattr(func, '__pine_method__', True)
     return func
+
+
+def _get_builtin_method(method_name: str, var: Any) -> Callable | None:
+    """
+    Get the built-in method for a Pine Script object.
+    :param method_name: The name of the method
+    :param var: The object on which the method is being called
+    :return: The built-in method, or None if not found
+    """
+    try:
+        if isinstance(var, list):
+            return getattr(array, method_name)
+
+        elif isinstance(var, Matrix):
+            return getattr(matrix, method_name)
+
+        elif isinstance(var, line.Line):
+            return getattr(line, method_name)
+
+        elif isinstance(var, box.Box):
+            return getattr(box, method_name)
+    except AttributeError:
+        pass
+
+    return None
 
 
 # noinspection PyShadowingNames
@@ -36,15 +62,10 @@ def method_call(method: str | Callable, var: Any, *args, **kwargs) -> Any:
 
     # If method is a string
     if isinstance(method, str):
-        # Support for array and matrix
-        try:
-            if isinstance(var, list):
-                return getattr(array, method)(var, *args, **kwargs)
-
-            elif isinstance(var, Matrix):
-                return getattr(matrix, method)(var, *args, **kwargs)
-        except AttributeError:
-            pass
+        # Support for builtin methods
+        _method = _get_builtin_method(method, var)
+        if _method is not None:
+            return _method(var, *args, **kwargs)
 
         # Modules
         try:
@@ -52,14 +73,16 @@ def method_call(method: str | Callable, var: Any, *args, **kwargs) -> Any:
         except AttributeError:
             pass
 
-        assert False, f'No such method: {method}'
+        assert False, f'No such method: {var}->{method}'
 
     # It is a local method, it should be a local function
     elif callable(method):
-        # TODO: check this this should be handled by the compiler
-        if hasattr(var, method.__name__):
-            return isolate_function(getattr(var, method.__name__),
-                                    '__method_call__', __scope_id__)(var, *args, **kwargs)
+        # It may not detected well the type and there may be a user with the same method name.
+        # So we 1st trt if it is a built-in object and has that method, because it has priority
+        _method = _get_builtin_method(method.__name__, var)
+        if _method:
+            return _method(var, *args, **kwargs)
+
         return isolate_function(method, '__method_call__', __scope_id__)(var, *args, **kwargs)
 
     return None

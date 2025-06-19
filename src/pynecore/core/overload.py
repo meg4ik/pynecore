@@ -34,19 +34,36 @@ _dispatchers: dict[str, Callable] = {}  # Store dispatchers separately
 
 
 def _check_type(value: Any, expected_type: Type) -> bool:
-    """Cached type checking for better performance"""
+    """Cached type checking for better performance with Pine Script compatibility"""
+    # Direct type match
     if isinstance(value, expected_type):
         return True
 
-    # Handle NA values based on their type
+    # Pine Script-like int to float conversion
+    if expected_type is float and isinstance(value, int):
+        return True
+
+    # Handle NA values - Pine Script allows NA for any basic type
     if isinstance(value, NA):
-        # If the value is NA, check if its type matches the expected type
+        # Check if expected_type is a Pine Script basic type
+        if expected_type in (int, float, str, bool):
+            return True
+
+        # For Union types containing basic types, NA is also acceptable
+        origin = get_origin(expected_type)
+        if origin in (Union, type(None) | type):
+            args = get_args(expected_type)
+            # If any of the Union members is a basic type, accept NA
+            if any(arg in (int, float, str, bool) for arg in args):
+                return True
+
+        # For non-basic types, check if NA's type matches
         na_type = value.type
         # Handle the case when na_type is an actual instance and not a type
         if not isinstance(na_type, type):
             if na_type is None:
                 return isinstance(None, expected_type)
-            na_type = na_type
+            na_type = type(na_type)
         return na_type is expected_type
 
     # Handle Union types

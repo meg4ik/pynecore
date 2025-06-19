@@ -17,7 +17,7 @@ def udt(cls: Type[T]) -> Type[T]:
     :return: The decorated class with added copy method
     """
     # Apply the standard dataclass decorator with slots=True for better performance
-    decorated_cls = dataclass(cls, slots=True)  # noqa
+    decorated_cls = dataclass(cls, slots=True)  # type: ignore
 
     def copy(self: T, **changes: Any) -> T:
         """
@@ -46,7 +46,7 @@ def udt(cls: Type[T]) -> Type[T]:
         return cls(*args, **kwargs)
 
     # Add the methods to the class
-    decorated_cls.copy = copy
+    decorated_cls.copy = copy  # type: ignore
     decorated_cls.new = new
 
     return decorated_cls
