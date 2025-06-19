@@ -1,17 +1,4 @@
-from ..types.base import IntEnum
-
-
-class AlignEnum(IntEnum):
-    ...
-
-
-class FormatEnum(IntEnum):
-    ...
-
-
-class WrapEnum(IntEnum):
-    ...
-
+from ..types.text import AlignEnum, FormatEnum, WrapEnum
 
 # Text alignment constants
 align_left = AlignEnum()

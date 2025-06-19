@@ -1,9 +1,4 @@
-from ..types.base import IntEnum
-
-
-class FontFamilyEnum(IntEnum):
-    ...
-
+from ..types.font import FontFamilyEnum
 
 # Font family constants
 family_default = FontFamilyEnum()

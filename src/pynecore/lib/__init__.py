@@ -1,7 +1,7 @@
 """
 Builtin library of Pyne
 """
-from typing import TypeAlias, Any, Callable
+from typing import TYPE_CHECKING, TypeAlias, Any, Callable
 
 import sys
 
@@ -15,21 +15,15 @@ from ..core.script import script, input
 
 from ..types.series import Series
 from ..types.na import NA
-from ..types.box import Box
-from ..types.line import Line
-from ..types.hline import HLine
-from ..types.table import Table
-from ..types.plot import Plot
-from ..types.alert import Alert
 from . import syminfo  # This should be imported before core.datetime to avoid circular import!
-from . import barstate, string, log, math
+from . import barstate, string, log, math, plot, hline, linefill, alert
 
 from pynecore.core.overload import overload
 from pynecore.core.datetime import parse_datestring as _parse_datestring, parse_timezone as _parse_timezone
 
 __all__ = [
     # Other modules
-    'syminfo', 'barstate', 'string', 'log', 'math',
+    'syminfo', 'barstate', 'string', 'log', 'math', 'plot',
 
     # Variables
     'bar_index',
@@ -43,10 +37,10 @@ __all__ = [
 
     'timestamp',
 
-    'plot', 'plotchar', 'plotarrow', 'plotbar', 'plotcandle', 'plotshape', 'barcolor', 'bgcolor',
-    'fill', 'hline', 'line', 'box', 'table',
+    'plotchar', 'plotarrow', 'plotbar', 'plotcandle', 'plotshape', 'barcolor', 'bgcolor',
+    'fill', 'linefill',
 
-    'alert', 'alertcondition',
+    'alertcondition',
 
     'fixnan', 'nz',
 
@@ -94,14 +88,26 @@ _plot_data: dict[str, Any] = {}
 # Lib semaphore - to prevent lib`s main function to do things it must not (plot, strategy things, etc.)
 _lib_semaphore = False
 
+#
+# Callable modules
+#
+
+if TYPE_CHECKING:
+    from hline import hline
+    from plot import plot
+    from alert import alert
+
 
 #
 # Functions
 #
 
+# noinspection PyUnusedLocal
 def max_bars_back(var: Any, num: int) -> None:
     """
-    Function sets the maximum number of bars that is available for historical reference of a given built-in or user variable.
+    Function sets the maximum number of bars that is available for historical reference of a given
+    built-in or user variable.
+
     :param var: Series variable identifier for which history buffer should be resized.
     :param num: History buffer size which is the number of bars to keep.
     """
@@ -213,14 +219,6 @@ def fill(*_, **__):
     ...
 
 
-box = Box
-hline = HLine
-line = Line
-table = Table
-
-plot = Plot
-
-
 def plotarrow(*_, **__):
     ...
 
@@ -242,9 +240,6 @@ def plotshape(*_, **__):
 
 
 ### Alert ###
-
-alert = Alert
-
 
 def alertcondition(*_, **__):
     """

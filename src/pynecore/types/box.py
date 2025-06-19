@@ -1,40 +1,33 @@
-from copy import copy as _copy
-from ..core.class_property import classproperty
+from typing import Optional
+from dataclasses import dataclass
+
+from .chart import ChartPoint
+from ..lib import (color as _color, extend as _extend, xloc as _xloc, size as _size, line as _line,
+                   text as _text, font as _font)
 
 
+@dataclass(slots=True)
 class Box:
-    _registry = []
+    # Required parameters - coordinates
+    left: int  # Bar index or UNIX time
+    top: float  # Price of the top border
+    right: int  # Bar index or UNIX time
+    bottom: float  # Price of the bottom border
 
-    def __init__(self, *_, **kwargs):
-        self._registry.append(self)
+    # Optional parameters with defaults
+    border_color: Optional[_color.Color] = None
+    border_width: int = 1
+    border_style: Optional[_line.LineEnum] = None
+    extend: Optional[_extend.Extend] = None
+    xloc: Optional[_xloc.XLoc] = None
+    bgcolor: Optional[_color.Color] = None
+    text: str = ""
+    text_size: Optional[_size.Size] = None
+    text_color: Optional[_color.Color] = None
+    text_halign: Optional[_text.AlignEnum] = None
+    text_valign: Optional[_text.AlignEnum] = None
+    text_wrap: Optional[_text.WrapEnum] = None
+    text_font_family: Optional[_font.FontFamilyEnum] = None
+    text_formatting: Optional[_text.FormatEnum] = None
 
-        self.__dict__.update(**kwargs)
-
-    @classproperty
-    def all(cls):  # noqa
-        return cls._registry
-
-    @classmethod
-    def new(cls, *_, **kwargs):
-        return cls(**kwargs)
-
-    def delete(self):
-        self.__class__._registry.remove(self)
-
-    # noinspection PyShadowingBuiltins,PyMethodParameters
-    def copy(id):
-        return _copy(id)
-
-    # noinspection PyMethodMayBeStatic
-    def get_top(self, *_, **__):
-        from ..lib import high
-        return high
-
-    # noinspection PyMethodMayBeStatic
-    def get_bottom(self, *_, **__):
-        from ..lib import low
-        return low
-
-    def set_right(self, *_, **__): ...
-
-    def set_extend(self, *_, **__): ...
+    force_overlay: bool = False

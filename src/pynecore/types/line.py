@@ -1,25 +1,27 @@
-from copy import copy as _copy
-from ..core.class_property import classproperty
+from dataclasses import dataclass
+from typing import Optional
+
+from ..lib import color as _color, extend as _extend, xloc as _xloc
+from .base import IntEnum
 
 
+class LineEnum(IntEnum):
+    ...
+
+
+@dataclass(slots=True)
 class Line:
-    _registry = []
+    # Required parameters - coordinates
+    x1: int  # Bar index or UNIX time
+    y1: float  # Price of the first point
+    x2: int  # Bar index or UNIX time
+    y2: float  # Price of the second point
 
-    def __init__(self, *_, **kwargs):
-        self._registry.append(self)
-        self.__dict__.update(**kwargs)
+    # Optional parameters with defaults
+    xloc: Optional[_xloc.XLoc] = None
+    extend: Optional[_extend.Extend] = None
+    color: Optional[_color.Color] = None
+    style: Optional[LineEnum] = None
+    width: int = 1
 
-    @classproperty
-    def all(cls):  # noqa
-        return cls._registry
-
-    @classmethod
-    def new(cls, *_, **kwargs):
-        return cls(**kwargs)
-
-    def delete(self):
-        self.__class__._registry.remove(self)
-
-    # noinspection PyShadowingBuiltins,PyMethodParameters
-    def copy(id):
-        return _copy(id)
+    force_overlay: bool = False

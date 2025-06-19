@@ -1,28 +1,23 @@
-from typing import Any
+from dataclasses import dataclass
+from typing import Optional, Union
+
 from .base import IntEnum
+from ..lib import color as _color, display as _display
 
 
-class _HLineEnum(IntEnum):
+class HLineEnum(IntEnum):
     ...
 
 
-class HLineConstants:
-    style_solid = _HLineEnum()
-    style_dotted = _HLineEnum()
-    style_dashed = _HLineEnum()
+@dataclass(slots=True)
+class HLine:
+    # Required parameter
+    price: Union[int, float]  # Price value at which the object will be rendered
 
-
-class HLine(HLineConstants):
-
-    def __init__(self, price: Any, title: str | None = None, color: Any = None,
-                 linestyle: Any = None, linewidth: int = 1, *_, **__):
-        """
-        Draw a horizontal line at a fixed price level
-
-        :param price: The price level at which the line will be drawn
-        :param title: The title of the line
-        :param color: The color of the line
-        :param linestyle: The style of the line
-        :param linewidth: The width of the line
-        :return: A HLine object
-        """
+    # Optional parameters
+    title: Optional[str] = None  # Title of the object
+    color: Optional[_color.Color] = None  # Color of the rendered line
+    linestyle: Optional[HLineEnum] = None  # Style of the rendered line
+    linewidth: int = 1  # Width of the rendered line
+    editable: bool = True  # If true then hline style will be editable in Format dialog
+    display: Optional[_display.Display] = None  # Controls where the hline is displayed
