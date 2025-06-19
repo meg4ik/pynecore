@@ -14,9 +14,9 @@ class ImportLifterTransformer(ast.NodeTransformer):
     @staticmethod
     def _is_lib_import(node: ast.ImportFrom) -> bool:
         """Check if an import is lib-related"""
-        return (node.module and
-                (node.module == 'pynecore.lib' or
-                 node.module.startswith('pynecore.lib.')))
+        return bool(node.module and
+                    (node.module == 'pynecore.lib' or
+                     node.module.startswith('pynecore.lib.')))
 
     def visit_Module(self, node: ast.Module) -> ast.Module:
         """Process module and add lifted imports at the top"""

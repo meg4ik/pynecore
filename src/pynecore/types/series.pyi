@@ -1,27 +1,27 @@
 from __future__ import annotations
 import os
-from typing import TypeVar, Generic, Any, Union, Protocol, TypeAlias
+from typing import TypeVar, Generic, Any, Union, Protocol, TypeAlias, Self
 from .na import NA
 
 T = TypeVar('T')
 
 # Pycharm is less strict and use more heuristics to infer types, so we can use a simpler and better implementation
 if os.environ.get("TYPECHECKER") == "pycharm":
-    class _SeriesIndexer(Protocol[T]):
-        def __getitem__(self, index: int) -> T: ...
+    T_co = TypeVar('T_co', covariant=True)
 
+    class _SeriesIndexer(Protocol[T_co]):
+        def __getitem__(self, index: int) -> T_co: ...
 
-    class _SeriesType(Generic[T], _SeriesIndexer[T]):
+    class _SeriesType(Generic[T_co], _SeriesIndexer[T_co]):
         """
         This is the runtime, do nothing implementation of the Series type. The actual Series behavior is
         implented in AST Transformers and the SeriesImpl class.
         """
 
-
     # The type definition that allows both uses
-    Series: TypeAlias = Union[T, _SeriesType[T]]
+    Series: TypeAlias = Union[T_co, _SeriesType[T_co]]
     # The persistent version of the Series type
-    PersistentSeries: TypeAlias = Union[T, _SeriesType[T]]
+    PersistentSeries: TypeAlias = Union[T_co, _SeriesType[T_co]]
 
 
 # Pyright is more strict and requires a more complex implementation, this does not work in PyCharm,
@@ -37,7 +37,7 @@ else:
         # The value to store
         value: list[T | NA[T]]
 
-        def __init__(self, value: Union[T, Series[T]]) -> None:
+        def __init__(self, value: T | Self) -> None:
             """
             Initialize the Series with a value.
             :param value: The initial value of the Series.
@@ -110,6 +110,5 @@ else:
         def __len__(self) -> int: ...
 
         def __repr__(self) -> str: ...
-
 
     PersistentSeries = Series

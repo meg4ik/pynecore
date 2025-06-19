@@ -11,21 +11,21 @@ from ...types.strategy import QtyType
 from ...types.base import IntEnum
 from ...types.na import NA
 
-from . import direction as _direction
+from . import direction
 from . import oca as _oca
 
 __all__ = [
     "fixed", "cash", "percent_of_equity",
-    "long", "short",
+    "long", "short", 'direction',
 
     'Trade', 'Order', 'Position',
-    "cancel", "cancel_all", "close", "close_all", "entry", "exit"
+    "cancel", "cancel_all", "close", "close_all", "entry", "exit",
 ]
-
 
 #
 # Types
 #
+
 
 class _OrderType(IntEnum):
     """ Order type """
@@ -39,8 +39,8 @@ fixed = QtyType("fixed")
 cash = QtyType("cash")
 percent_of_equity = QtyType("percent_of_equity")
 
-long = _direction.long
-short = _direction.short
+long = direction.long
+short = direction.short
 
 # Possible order types
 _order_type_normal = _OrderType()
@@ -805,7 +805,7 @@ def close_all(comment: str | NA[str] = NA(str), alert_message: str | NA[str] = N
 
 
 # noinspection PyProtectedMember,PyShadowingNames,PyShadowingBuiltins
-def entry(id: str, direction: _direction.Direction, qty: int | float | NA[float] = NA(float),
+def entry(id: str, direction: direction.Direction, qty: int | float | NA[float] = NA(float),
           limit: int | float | None = None, stop: int | float | None = None,
           oca_name: str | None = None, oca_type: _oca.Oca | None = None,
           comment: str | None = None, alert_message: str | None = None):
@@ -851,7 +851,7 @@ def entry(id: str, direction: _direction.Direction, qty: int | float | NA[float]
         return
 
     # We need a signed size instead of qty, the sign is the direction
-    direction: float = (-1.0 if direction == _direction.short else 1.0)
+    direction: float = (-1.0 if direction == short else 1.0)
     size = qty * direction
     sign = 0.0 if size == 0.0 else 1.0 if size > 0.0 else -1.0
 

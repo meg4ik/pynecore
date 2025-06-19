@@ -42,11 +42,11 @@ class ModulePropertyTransformer(ast.NodeTransformer):
         # Set parent on children
         for field, value in ast.iter_fields(node):
             if isinstance(value, ast.AST):
-                value.parent = node
+                setattr(value, "parent", node)
             elif isinstance(value, list):
                 for item in value:
                     if isinstance(item, ast.AST):
-                        item.parent = node
+                        setattr(item, "parent", node)
 
         # Handle isolate_function context
         if is_isolate_call:
@@ -129,7 +129,7 @@ class ModulePropertyTransformer(ast.NodeTransformer):
         else:
             result = node
 
-        result._processed = True
+        setattr(result, "_processed", True)
         return result
 
     @staticmethod
@@ -168,7 +168,7 @@ class ModulePropertyTransformer(ast.NodeTransformer):
         """Check if the node is inside a type annotation."""
         current = node
         while hasattr(current, 'parent'):
-            parent = current.parent
+            parent = getattr(current, 'parent', None)
 
             # Check if we're in an annotated assignment's annotation
             if (isinstance(parent, ast.AnnAssign) and parent.annotation and

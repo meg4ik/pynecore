@@ -58,7 +58,7 @@ class PersistentSeriesTransformer(ast.NodeTransformer):
             value=value,
             simple=1
         )
-        persistent_decl._ps_transformed = True
+        setattr(persistent_decl, "_ps_transformed", True)
 
         # 2. Series declaration
         series_decl = ast.AnnAssign(
@@ -71,6 +71,6 @@ class PersistentSeriesTransformer(ast.NodeTransformer):
             value=ast.Name(id=var_name, ctx=ast.Load()),
             simple=1
         )
-        series_decl._ps_transformed = True
+        setattr(series_decl, "_ps_transformed", True)
 
         return [persistent_decl, series_decl]

@@ -8,7 +8,7 @@ __all__ = [
 
 
 # noinspection PyProtectedMember
-def commission(trade_num: int) -> float | NA:
+def commission(trade_num: int) -> float | NA[float]:
     """
     Returns the sum of entry and exit fees paid in the open trade, expressed in strategy.account_currency
 
@@ -16,15 +16,17 @@ def commission(trade_num: int) -> float | NA:
     :return: The sum of entry and exit fees paid in the open trade, expressed in strategy.account_currency
     """
     if trade_num < 0:
-        return NA
+        return NA(float)
     try:
+        assert lib._script is not None
+        assert lib._script.position is not None
         return lib._script.position.open_trades[trade_num].commission
-    except IndexError:
+    except (IndexError, AssertionError):
         return 0.0
 
 
 # noinspection PyProtectedMember
-def entry_bar_index(trade_num: int) -> int | NA:
+def entry_bar_index(trade_num: int) -> int | NA[int]:
     """
     Returns the bar_index of the open trade's entry
 
@@ -32,15 +34,17 @@ def entry_bar_index(trade_num: int) -> int | NA:
     :return: The bar_index of the open trade's entry
     """
     if trade_num < 0:
-        return NA
+        return NA(int)
     try:
+        assert lib._script is not None
+        assert lib._script.position is not None
         return lib._script.position.open_trades[trade_num].entry_bar_index
-    except IndexError:
-        return NA
+    except (IndexError, AssertionError):
+        return NA(int)
 
 
 # noinspection PyProtectedMember
-def entry_comment(trade_num: int) -> str | NA:
+def entry_comment(trade_num: int) -> str | NA[str]:
     """
     Returns the comment message of the open trade's entry
 
@@ -48,15 +52,17 @@ def entry_comment(trade_num: int) -> str | NA:
     :return: The comment message of the open trade's entry
     """
     if trade_num < 0:
-        return NA
+        return NA(str)
     try:
+        assert lib._script is not None
+        assert lib._script.position is not None
         return lib._script.position.open_trades[trade_num].entry_comment
-    except IndexError:
-        return NA
+    except (IndexError, AssertionError):
+        return NA(str)
 
 
 # noinspection PyProtectedMember
-def entry_id(trade_num: int) -> str | NA:
+def entry_id(trade_num: int) -> str | NA[str]:
     """
     Returns the id of the open trade's entry
 
@@ -64,15 +70,17 @@ def entry_id(trade_num: int) -> str | NA:
     :return: The id of the open trade's entry
     """
     if trade_num < 0:
-        return NA
+        return NA(str)
     try:
+        assert lib._script is not None
+        assert lib._script.position is not None
         return lib._script.position.open_trades[trade_num].entry_id
-    except IndexError:
-        return NA
+    except (IndexError, AssertionError):
+        return NA(str)
 
 
 # noinspection PyProtectedMember
-def entry_price(trade_num: int) -> float | NA:
+def entry_price(trade_num: int) -> float | NA[float]:
     """
     Returns the price of the open trade's entry
 
@@ -80,15 +88,17 @@ def entry_price(trade_num: int) -> float | NA:
     :return: The price of the open trade's entry
     """
     if trade_num < 0:
-        return NA
+        return NA(float)
     try:
+        assert lib._script is not None
+        assert lib._script.position is not None
         return lib._script.position.open_trades[trade_num].entry_price
-    except IndexError:
-        return NA
+    except (IndexError, AssertionError):
+        return NA(float)
 
 
 # noinspection PyProtectedMember
-def entry_time(trade_num: int) -> int | NA:
+def entry_time(trade_num: int) -> int | NA[int]:
     """
     Returns the time of the open trade's entry (UNIX)
 
@@ -96,15 +106,17 @@ def entry_time(trade_num: int) -> int | NA:
     :return: The time of the open trade's entry (UNIX)
     """
     if trade_num < 0:
-        return NA
+        return NA(int)
     try:
+        assert lib._script is not None
+        assert lib._script.position is not None
         return lib._script.position.open_trades[trade_num].entry_time
-    except IndexError:
-        return NA
+    except (IndexError, AssertionError):
+        return NA(int)
 
 
 # noinspection PyProtectedMember
-def max_drawdown(trade_num: int) -> float | NA:
+def max_drawdown(trade_num: int) -> float | NA[float]:
     """
     Returns the maximum drawdown of the open trade
 
@@ -112,10 +124,12 @@ def max_drawdown(trade_num: int) -> float | NA:
     :return: The maximum drawdown of the open trade
     """
     if trade_num < 0:
-        return NA
+        return NA(float)
     try:
+        assert lib._script is not None
+        assert lib._script.position is not None
         return lib._script.position.open_trades[trade_num].max_drawdown
-    except IndexError:
+    except (IndexError, AssertionError):
         return 0.0
 
 
@@ -128,10 +142,12 @@ def max_drawdown_percent(trade_num: int) -> float | NA:
     :return: The maximum drawdown percentage of the open trade
     """
     if trade_num < 0:
-        return NA
+        return NA(float)
     try:
+        assert lib._script is not None
+        assert lib._script.position is not None
         return lib._script.position.open_trades[trade_num].max_drawdown_percent
-    except IndexError:
+    except (IndexError, AssertionError):
         return 0.0
 
 
@@ -144,10 +160,12 @@ def max_runup(trade_num: int) -> float | NA:
     :return: The maximum runup of the open trade
     """
     if trade_num < 0:
-        return NA
+        return NA(float)
     try:
+        assert lib._script is not None
+        assert lib._script.position is not None
         return lib._script.position.open_trades[trade_num].max_runup
-    except IndexError:
+    except (IndexError, AssertionError):
         return 0.0
 
 
@@ -160,10 +178,12 @@ def max_runup_percent(trade_num: int) -> float | NA:
     :return: The maximum runup percentage of the open trade
     """
     if trade_num < 0:
-        return NA
+        return NA(float)
     try:
+        assert lib._script is not None
+        assert lib._script.position is not None
         return lib._script.position.open_trades[trade_num].max_runup_percent
-    except IndexError:
+    except (IndexError, AssertionError):
         return 0.0
 
 
@@ -175,8 +195,10 @@ def profit(trade_num: int) -> float | NA:
     :return: The profit of the open trade expressed in strategy.account_currency
     """
     if trade_num < 0:
-        return NA
+        return NA(float)
     try:
+        assert lib._script is not None
+        assert lib._script.position is not None
         return lib._script.position.open_trades[trade_num].profit
     except IndexError:
         return 0.0
@@ -190,15 +212,17 @@ def profit_percent(trade_num: int) -> float | NA:
     :return: The profit percentage of the open trade
     """
     if trade_num < 0:
-        return NA
+        return NA(float)
     try:
+        assert lib._script is not None
+        assert lib._script.position is not None
         return lib._script.position.open_trades[trade_num].profit_percent
-    except IndexError:
+    except (IndexError, AssertionError):
         return 0.0
 
 
 # noinspection PyProtectedMember
-def size(trade_num: int) -> float | NA:
+def size(trade_num: int) -> float | NA[float]:
     """
     Returns the size and direction (<0 short >0 long) of the open trade
 
@@ -206,8 +230,10 @@ def size(trade_num: int) -> float | NA:
     :return: The size and direction (<0 short >0 long) of the open trade
     """
     if trade_num < 0:
-        return NA
+        return NA(float)
     try:
+        assert lib._script is not None
+        assert lib._script.position is not None
         return lib._script.position.open_trades[trade_num].size
-    except IndexError:
+    except (IndexError, AssertionError):
         return 0.0

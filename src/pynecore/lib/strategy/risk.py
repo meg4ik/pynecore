@@ -8,8 +8,8 @@ from ... import lib
 def max_drowdown(
         value: float | int,
         type: strategy.QtyType = strategy.percent_of_equity,
-        alerrt_message: str | NA = NA
-) -> float | NA:
+        alerrt_message: str | NA[str] = NA(str)
+) -> float | NA[float]:
     """
     The purpose of this rule is to determine maximum drawdown. The rule affects the whole strategy.
     Once the maximum drawdown value is reached, all pending orders are cancelled, all open positions
@@ -21,6 +21,7 @@ def max_drowdown(
     :return:
     """
     # TODO: Implement this function
+    return NA(float)
 
 
 def allow_entry_in(value: strategy.direction.Direction) -> None:
@@ -33,7 +34,7 @@ def allow_entry_in(value: strategy.direction.Direction) -> None:
     # TODO: Implement this function
 
 
-def max_cons_loss_days(count: int, alerrt_message: str | NA = NA) -> None:
+def max_cons_loss_days(count: int, alerrt_message: str | NA[str] = NA(str)) -> None:
     """
     The purpose of this rule is to determine the maximum number of consecutive losing days.
     Once the maximum number of consecutive losing days is reached, all pending orders are cancelled,
@@ -45,7 +46,7 @@ def max_cons_loss_days(count: int, alerrt_message: str | NA = NA) -> None:
     # TODO: Implement this function
 
 
-def max_intraday_filled_orders(count: int, alerrt_message: str | NA = NA) -> None:
+def max_intraday_filled_orders(count: int, alerrt_message: str | NA[str] = NA(str)) -> None:
     """
     The purpose of this rule is to determine the maximum number of intraday filled orders
 
@@ -57,7 +58,7 @@ def max_intraday_filled_orders(count: int, alerrt_message: str | NA = NA) -> Non
 
 # noinspection PyShadowingBuiltins
 def max_intraday_loss(value: float | int, type: strategy.QtyType = strategy.percent_of_equity,
-                      alerrt_message: str | NA = NA) -> None:
+                      alerrt_message: str | NA[str] = NA(str)) -> None:
     """
     The purpose of this rule is to determine the maximum intraday loss. The rule affects the whole strategy.
     Once the maximum intraday loss value is reached, all pending orders are cancelled, all open positions
