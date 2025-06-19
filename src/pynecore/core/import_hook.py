@@ -13,7 +13,7 @@ class PyneLoader(importlib.machinery.SourceFileLoader):
     # noinspection PyMethodOverriding
     def source_to_code(self, data: bytes | str, path: str, *, _optimize: int = -1):
         """Transform source to code if needed"""
-        path = Path(path)
+        path: Path = Path(path)
 
         # Create marker file for pynecore site-packages to indicate we processed this file
         if '/site-packages/' in str(path) and '/pynecore/' in str(path):
@@ -47,7 +47,7 @@ class PyneLoader(importlib.machinery.SourceFileLoader):
         if (tree.body and isinstance(tree.body[0], ast.Expr) and
                 isinstance(cast(ast.Expr, tree.body[0]).value, ast.Constant) and
                 isinstance(cast(ast.Constant, cast(ast.Expr, tree.body[0]).value).value, str) and
-                '@pyne' in cast(ast.Constant, cast(ast.Expr, tree.body[0]).value).value):
+                '@pyne' in cast(ast.Constant, cast(ast.Expr, tree.body[0]).value).value):  # type: ignore
 
             # Remove test cases from the output, because they can coorupt the output
             transformed = tree

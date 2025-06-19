@@ -13,11 +13,11 @@ The .ohlcv format cannot have gaps in it. All gaps are filled with the previous 
 """
 
 from typing import Iterator
-import io
 import os
 import mmap
 import struct
 from pathlib import Path
+from io import BufferedWriter, BufferedRandom
 from datetime import datetime, UTC
 
 from pynecore.types.ohlcv import OHLCV
@@ -42,7 +42,7 @@ class OHLCVWriter:
 
     def __init__(self, path: Path):
         self.path: Path = path
-        self._file: io.BufferedWriter | None = None
+        self._file: BufferedWriter | BufferedRandom | None = None
         self._size: int = 0
         self._start_timestamp: int | None = None
         self._interval: int | None = None

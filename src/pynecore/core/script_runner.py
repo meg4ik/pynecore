@@ -104,6 +104,32 @@ def _set_lib_syminfo_properties(syminfo: SymInfo, lib: ModuleType):
     lib.syminfo._session_ends = syminfo.session_ends
 
 
+def _reset_lib_vars(lib: ModuleType):
+    """
+    Reset lib variables to be able to run other scripts
+    :param lib:
+    :return:
+    """
+    if TYPE_CHECKING:  # This is needed for the type checker to work
+        from .. import lib
+    from ..types.source import Source
+
+    lib.open = Source("open")
+    lib.high = Source("high")
+    lib.low = Source("low")
+    lib.close = Source("close")
+    lib.volume = Source("volume")
+    lib.hl2 = Source("hl2")
+    lib.hlc3 = Source("hlc3")
+    lib.ohlc4 = Source("ohlc4")
+    lib.hlcc4 = Source("hlcc4")
+
+    lib._time = 0
+    lib._datetime = datetime.fromtimestamp(0, UTC)
+
+    lib._lib_semaphore = False
+
+
 class ScriptRunner:
     """
     Script runner
@@ -324,6 +350,8 @@ class ScriptRunner:
             # Close the equity writer
             if self.equity_writer:
                 self.equity_writer.close()
+            # Reset library variables
+            _reset_lib_vars(lib)
 
     def run(self, on_progress: Callable[[datetime], None] | None = None):
         """

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TypeVar, Generic, Iterator
+from typing import TypeVar, Generic, Iterator, cast
 
 from types import ModuleType
 
@@ -157,7 +157,7 @@ class SeriesImpl(Generic[T]):
         :return: The value that was set, or na if buffer is empty.
         """
         if self._size == 0:
-            return NA(T)
+            return cast(NA[T], NA())
 
         pos = (self._write_pos - 1) % self._capacity
         self._buffer[pos] = value
@@ -177,7 +177,7 @@ class SeriesImpl(Generic[T]):
             if key < 0:
                 raise IndexError("Negative indices not supported!")
             if key >= self._size:
-                return NA(T)
+                return cast(NA[T], NA())
             pos = (self._write_pos - 1 - key) % self._capacity
             return self._buffer[pos]
 
