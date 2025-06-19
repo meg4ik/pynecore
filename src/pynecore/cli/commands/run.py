@@ -23,31 +23,31 @@ __all__ = []
 
 class CustomTimeElapsedColumn(ProgressColumn):
     """Custom time elapsed column showing milliseconds."""
-    
+
     def render(self, task: Task) -> Text:
         """Render the time elapsed with milliseconds."""
         elapsed = task.elapsed
         if elapsed is None:
             return Text("--:--.-", style="cyan")
-        
+
         minutes = int(elapsed // 60)
         seconds = elapsed % 60
-        
+
         return Text(f"{minutes:02d}:{seconds:06.3f}", style="cyan")
 
 
 class CustomTimeRemainingColumn(ProgressColumn):
     """Custom time remaining column showing milliseconds."""
-    
+
     def render(self, task: Task) -> Text:
         """Render the time remaining with milliseconds."""
         remaining = task.time_remaining
         if remaining is None:
             return Text("--:--.-", style="cyan")
-        
+
         minutes = int(remaining // 60)
         seconds = remaining % 60
-        
+
         return Text(f"{minutes:02d}:{seconds:06.3f}", style="cyan")
 
 
@@ -173,7 +173,7 @@ def run(
                 TextColumn("{task.description}"),
         ) as loading_progress:
             loading_task = loading_progress.add_task("Loading PyneCore...", total=1)
-            
+
             try:
                 # Create script runner (this is where the import happens)
                 runner = ScriptRunner(script, ohlcv_iter, syminfo, last_bar_index=size - 1,
@@ -182,7 +182,7 @@ def run(
                 # Remove lib directory from Python path
                 if lib_path_added:
                     sys.path.remove(str(lib_dir))
-            
+
             # Mark as completed
             loading_progress.update(loading_task, completed=1)
 
@@ -247,16 +247,16 @@ def run(
             try:
                 # Run the script
                 runner.run(on_progress=cb_progress)
-                
+
                 # Ensure final progress update
                 progress_queue.put(time_to)
                 time.sleep(0.05)  # Give worker thread time to process final update
-                
+
+                progress.update(task, completed=total_seconds)
             finally:
                 # Stop worker thread
                 stop_event.set()
                 worker.join(timeout=0.1)  # Wait max 100ms for thread to finish
-                
+
                 # Final update to ensure completion
-                progress.update(task, completed=total_seconds)
                 progress.refresh()
