@@ -57,7 +57,21 @@ def _format_number(value: float, fmt_type: str = '', precision: str = '#.###') -
         tick_size = _syminfo.mintick
         value = round(value / tick_size) * tick_size  # type: ignore
         # Get decimal places from mintick
-        dec_str = str(tick_size).rstrip('0').split('.')[1]
+        tick_str = str(tick_size)
+        if 'e' in tick_str or 'E' in tick_str:
+            # Handle scientific notation
+            # Convert to decimal format to count decimal places
+            tick_decimal = f"{tick_size:.20f}".rstrip('0')
+            if '.' in tick_decimal:
+                dec_str = tick_decimal.split('.')[1]
+            else:
+                dec_str = ''
+        else:
+            # Handle regular decimal notation
+            if '.' in tick_str:
+                dec_str = tick_str.rstrip('0').split('.')[1]
+            else:
+                dec_str = ''
         precision = '#.' + '#' * len(dec_str)
 
     elif fmt_type == _format.inherit:
