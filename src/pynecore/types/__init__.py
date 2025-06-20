@@ -14,3 +14,4 @@ from .linefill import LineFill
 from .polyline import Polyline
 from .table import Table
 from .extend import Extend
+from .matrix import Matrix

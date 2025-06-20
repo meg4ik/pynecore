@@ -1528,7 +1528,7 @@ def stoch(source: float | Series[float], high: float | Series[float], low: float
     if dl_diff < 0.0:
         k = 0.0
     else:
-        k = (100 * dl_diff / hl_diff) if hl_diff != 0.0 else 100.0
+        k = 100 * dl_diff / hl_diff
         k = 100.0 if k > 100.0 else 0.0 if k < 0.0 else k
     return k  # type: ignore
 

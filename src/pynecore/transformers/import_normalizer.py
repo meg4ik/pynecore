@@ -33,6 +33,8 @@ class ImportNormalizerTransformer(ast.NodeTransformer):
         self.wildcard_imports: Dict[str, Set[str]] = {}
         # Track required submodules
         self.required_submodules: Set[str] = set()
+        # Track function parameters to avoid replacing them
+        self.function_parameters: Set[str] = set()
 
     @staticmethod
     def _is_lib_import(node: ast.ImportFrom) -> bool:
@@ -243,6 +245,10 @@ class ImportNormalizerTransformer(ast.NodeTransformer):
     def visit_Name(self, node: ast.Name) -> ast.AST:
         """Transform variable references"""
         if isinstance(node.ctx, ast.Load):
+            # Don't replace function parameters
+            if node.id in self.function_parameters:
+                return node
+            
             # Handle regular imports
             if node.id in self.names_to_replace:
                 path = self.import_map[node.id]
@@ -284,11 +290,28 @@ class ImportNormalizerTransformer(ast.NodeTransformer):
     def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef:
         """Process function definitions and handle imports"""
         old_function = self.current_function
+        old_parameters = self.function_parameters.copy()
+        
         self.current_function = node.name
+        
+        # Collect function parameters
+        for arg in node.args.args:
+            self.function_parameters.add(arg.arg)
+        
+        # Also handle keyword-only args, positional-only args, vararg, and kwarg
+        for arg in node.args.posonlyargs:
+            self.function_parameters.add(arg.arg)
+        for arg in node.args.kwonlyargs:
+            self.function_parameters.add(arg.arg)
+        if node.args.vararg:
+            self.function_parameters.add(node.args.vararg.arg)
+        if node.args.kwarg:
+            self.function_parameters.add(node.args.kwarg.arg)
 
         # Process function
         node = cast(ast.FunctionDef, self.generic_visit(node))
 
         # Reset function context
         self.current_function = old_function
+        self.function_parameters = old_parameters
         return node
