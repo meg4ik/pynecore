@@ -64,7 +64,7 @@ def _set_lib_properties(ohlcv: OHLCV, bar_index: int, tz: 'ZoneInfo', lib: Modul
     if TYPE_CHECKING:  # This is needed for the type checker to work
         from .. import lib
 
-    lib.bar_index = bar_index
+    lib.bar_index = lib.last_bar_index = bar_index
 
     lib.open = _round_price(ohlcv.open, lib)
     lib.high = _round_price(ohlcv.high, lib)
@@ -79,7 +79,7 @@ def _set_lib_properties(ohlcv: OHLCV, bar_index: int, tz: 'ZoneInfo', lib: Modul
     lib.hlcc4 = (lib.high + lib.low + 2 * lib.close) / 4.0
 
     dt = lib._datetime = datetime.fromtimestamp(ohlcv.timestamp, UTC).astimezone(tz)
-    lib._time = int(dt.timestamp() * 1000)  # PineScript representation of time
+    lib._time = lib.last_bar_time = int(dt.timestamp() * 1000)  # PineScript representation of time
 
 
 def _set_lib_syminfo_properties(syminfo: SymInfo, lib: ModuleType):

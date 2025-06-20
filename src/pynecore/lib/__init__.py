@@ -32,7 +32,7 @@ __all__ = [
     'syminfo', 'barstate', 'string', 'log', 'math', 'plot',
 
     # Variables
-    'bar_index',
+    'bar_index', 'last_bar_index', 'last_bar_time',
     'open', 'high', 'low', 'close', 'volume',
     'hl2', 'hlc3', 'ohlc4', 'hlcc4',
 
@@ -68,6 +68,7 @@ DateStr: TypeAlias = str  # e.g. "2020-02-20", "20 Feb 2020"
 #
 
 bar_index: Series[int] = 0
+last_bar_index: Series[int] = 0  # This always points to the bar_index
 
 open: Series[float] | NA[float] = Source("open")  # noqa (shadowing built-in name (open) intentionally)
 high: Series[float] | NA[float] = Source("high")
@@ -82,6 +83,8 @@ hlcc4: Series[float] | NA[float] = Source("hlcc4")
 
 # Store time as integer as in Pine Scripts timestamp format
 _time: int = 0
+last_bar_time: int = 0
+
 # Datetime object in the exchange timezone
 _datetime: datetime = datetime.fromtimestamp(0, UTC)
 
