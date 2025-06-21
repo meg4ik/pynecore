@@ -16,7 +16,7 @@ from pynecore.core.overload import overload
 from ..core import safe_convert
 
 # We need to use this kind of import to make transformer work
-from pynecore.lib import open, high, low, close, volume, bar_index, array, session, math as lib_math
+from pynecore.lib import open, high, low, close, volume, hl2, bar_index, array, session, math as lib_math
 
 TFIB = TypeVar('TFIB', float, int, bool)
 TFI = TypeVar('TFI', float, int)
@@ -1544,8 +1544,15 @@ def supertrend(factor: float | int, atr_period: int) -> tuple[float | NA, int | 
     """
     assert atr_period > 0, "Invalid ATR period, must be greater than 0!"
 
+    # Store persistent state
+    prev_lower: Persistent[float | NA[float]] = NA(float)
+    prev_upper: Persistent[float | NA[float]] = NA(float)
+    prev_close: Persistent[float | NA[float]] = NA(float)
+    prev_direction: Persistent[int | NA[int]] = NA(int)
+    prev_supertrend: Persistent[float | NA[float]] = NA(float)
+
     # Calculate base values
-    src = (high + low) / 2  # hl2
+    src = hl2
     atr_val = atr(atr_period)
 
     # This is a strange bug in Pine Script, but we need to replicate it
@@ -1553,18 +1560,11 @@ def supertrend(factor: float | int, atr_period: int) -> tuple[float | NA, int | 
         return 0.0, 1
 
     if isinstance(src, NA) or isinstance(atr_val, NA):
-        return NA(float), NA(int)
+        return NA(float), prev_direction if not isinstance(prev_direction, NA) else 1
 
     # Calculate bands
     upper = src + factor * atr_val
     lower = src - factor * atr_val
-
-    # Store persistent state
-    prev_lower: Persistent[float | NA[float]] = NA(float)
-    prev_upper: Persistent[float | NA[float]] = NA(float)
-    prev_close: Persistent[float | NA[float]] = NA(float)
-    prev_direction: Persistent[int | NA[int]] = NA(int)
-    prev_supertrend: Persistent[float | NA[float]] = NA(float)
 
     # First value initialization
     if isinstance(prev_direction, NA):

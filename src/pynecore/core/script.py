@@ -741,6 +741,15 @@ class _Input:
     bool = _bool
     float = _float
 
+    # We don't have interactive inputs, so it is the same as float
+    price = _float
+
+    # These are incomplete, but good workaround
+    session = string
+    symbol = string
+    timeframe = string
+    textarea = string
+
 
 # noinspection PyShadowingBuiltins
 input = _Input()

@@ -129,6 +129,9 @@ def _reset_lib_vars(lib: ModuleType):
 
     lib._lib_semaphore = False
 
+    lib.barstate.isfirst = True
+    lib.barstate.islast = False
+
 
 class ScriptRunner:
     """
