@@ -32,7 +32,7 @@ Trading strategies and technical indicators are usually implemented in one of tw
 
 PyneCore was built with several ambitious goals in mind:
 
-- **100% compatibility with TradingView Pine Script**: The system aims to replicate Pine Script functionality with precision (up to 14 decimal places where applicable)
+- **100% compatibility with TradingView Pine Script**: The system aims to replicate Pine Script functionality with high precision (0.001% tolerance)
 - **Zero mandatory dependencies**: The core system operates without external libraries, ensuring portability and reliability
 - **Maximum performance**: Designed from the ground up for speed and efficiency
 - **Clean, well-documented code**: The source code prioritizes readability and proper documentation

@@ -25,7 +25,7 @@ PyneCore is an open-source framework that implements TradingView's Pine Script p
 
 ### How does PyneCore relate to TradingView?
 
-PyneCore is not affiliated with or endorsed by TradingView. It is an independent project that aims to be compatible with Pine Script functionality while offering the advantages of Python. PyneCore strives to match TradingView's Pine Script calculations with high precision (up to 14 decimal places where applicable).
+PyneCore is not affiliated with or endorsed by TradingView. It is an independent project that aims to be compatible with Pine Script functionality while offering the advantages of Python. PyneCore strives to match TradingView's Pine Script calculations with precision testing with tolerances of 0.001% (relative) and 0.00000001 (absolute).
 
 ### Is PyneCore free to use?
 
@@ -170,7 +170,7 @@ You can use either or both methods (even in the same script) based on your prefe
 
 ### Is PyneCore 100% compatible with Pine Script?
 
-PyneCore aims for high compatibility with Pine Script functionality and calculations, targeting precision up to 14 decimal places where applicable. However, there are some intentional differences to make the experience more Pythonic and to leverage Python's strengths. These differences are documented in the [Differences from Pine Script](./overview/differences.md) page.
+PyneCore aims for high compatibility with Pine Script functionality and calculations, with high precision (0.001% tolerance). However, there are some intentional differences to make the experience more Pythonic and to leverage Python's strengths. These differences are documented in the [Differences from Pine Script](./overview/differences.md) page.
 
 ### How does PyneCore handle NA values?
 

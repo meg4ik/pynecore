@@ -1,12 +1,6 @@
 {
   "lib": {
-    "alert": {
-      "type": "variable"
-    },
     "bar_index": {
-      "type": "variable"
-    },
-    "box": {
       "type": "variable"
     },
     "close": {
@@ -30,13 +24,13 @@
     "hlcc4": {
       "type": "variable"
     },
-    "hline": {
-      "type": "variable"
-    },
     "hour": {
       "type": "property"
     },
-    "line": {
+    "last_bar_index": {
+      "type": "variable"
+    },
+    "last_bar_time": {
       "type": "variable"
     },
     "low": {
@@ -57,16 +51,13 @@
     "open": {
       "type": "variable"
     },
-    "plot": {
-      "type": "variable"
-    },
     "second": {
       "type": "property"
     },
-    "table": {
-      "type": "variable"
-    },
     "time": {
+      "type": "property"
+    },
+    "time_close": {
       "type": "property"
     },
     "volume": {
@@ -90,6 +81,7 @@
       "type": "variable"
     }
   },
+  "lib.alert": {},
   "lib.array": {
     "Number": {
       "type": "variable"
@@ -118,6 +110,7 @@
       "type": "property"
     }
   },
+  "lib.box": {},
   "lib.chart": {
     "bg_color": {
       "type": "variable"
@@ -264,6 +257,14 @@
       "type": "variable"
     }
   },
+  "lib.font": {
+    "family_default": {
+      "type": "variable"
+    },
+    "family_monospace": {
+      "type": "variable"
+    }
+  },
   "lib.format": {
     "inherit": {
       "type": "variable"
@@ -281,12 +282,93 @@
       "type": "variable"
     }
   },
-  "lib.label": {},
-  "lib.linefill": {
-    "all": {
-      "type": "property"
+  "lib.hline": {},
+  "lib.label": {
+    "style_arrowdown": {
+      "type": "variable"
+    },
+    "style_arrowup": {
+      "type": "variable"
+    },
+    "style_circle": {
+      "type": "variable"
+    },
+    "style_cross": {
+      "type": "variable"
+    },
+    "style_diamond": {
+      "type": "variable"
+    },
+    "style_flag": {
+      "type": "variable"
+    },
+    "style_label_center": {
+      "type": "variable"
+    },
+    "style_label_down": {
+      "type": "variable"
+    },
+    "style_label_left": {
+      "type": "variable"
+    },
+    "style_label_lower_left": {
+      "type": "variable"
+    },
+    "style_label_lower_right": {
+      "type": "variable"
+    },
+    "style_label_right": {
+      "type": "variable"
+    },
+    "style_label_up": {
+      "type": "variable"
+    },
+    "style_label_upper_left": {
+      "type": "variable"
+    },
+    "style_label_upper_right": {
+      "type": "variable"
+    },
+    "style_none": {
+      "type": "variable"
+    },
+    "style_square": {
+      "type": "variable"
+    },
+    "style_text_outline": {
+      "type": "variable"
+    },
+    "style_triangledown": {
+      "type": "variable"
+    },
+    "style_triangleup": {
+      "type": "variable"
+    },
+    "style_xcross": {
+      "type": "variable"
     }
   },
+  "lib.line": {
+    "style_arrow_both": {
+      "type": "variable"
+    },
+    "style_arrow_left": {
+      "type": "variable"
+    },
+    "style_arrow_right": {
+      "type": "variable"
+    },
+    "style_dashed": {
+      "type": "variable"
+    },
+    "style_dotted": {
+      "type": "variable"
+    },
+    "style_solid": {
+      "type": "variable"
+    }
+  },
+  "lib.linefill": {},
   "lib.location": {
     "abovebar": {
       "type": "variable"
@@ -340,6 +422,7 @@
       "type": "variable"
     }
   },
+  "lib.plot": {},
   "lib.position": {
     "bottom_center": {
       "type": "variable"
@@ -608,6 +691,38 @@
     },
     "wvad": {
       "type": "property"
+    }
+  },
+  "lib.text": {
+    "align_bottom": {
+      "type": "variable"
+    },
+    "align_center": {
+      "type": "variable"
+    },
+    "align_left": {
+      "type": "variable"
+    },
+    "align_right": {
+      "type": "variable"
+    },
+    "align_top": {
+      "type": "variable"
+    },
+    "format_bold": {
+      "type": "variable"
+    },
+    "format_italic": {
+      "type": "variable"
+    },
+    "format_none": {
+      "type": "variable"
+    },
+    "wrap_auto": {
+      "type": "variable"
+    },
+    "wrap_none": {
+      "type": "variable"
     }
   },
   "lib.timeframe": {

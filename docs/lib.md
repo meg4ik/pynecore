@@ -98,7 +98,7 @@ All functional Pine modules (array, map, etc.) in the PyneCore library work comp
 
 ## Pine Script Compatibility
 
-The goal of the PyneCore library is to provide full compatibility with the Pine Script API while leveraging Python's strengths. Technical indicators and other calculations are performed with 14 decimal places of precision, just like Pine Script.
+The goal of the PyneCore library is to provide full compatibility with the Pine Script API while leveraging Python's strengths. Technical indicators and other calculations are performed with high precision (0.001% tolerance), just like Pine Script.
 
 ### Documentation
 

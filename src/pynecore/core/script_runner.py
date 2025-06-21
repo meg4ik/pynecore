@@ -347,6 +347,29 @@ class ScriptRunner:
         except GeneratorExit:
             pass
         finally:  # Python reference counter will close this even if the iterator is not exhausted
+            # Export remaining open trades before closing
+            if is_strat and self.equity_writer and position and position.open_trades:
+                for trade in position.open_trades:
+                    trade_num += 1  # Continue numbering from closed trades
+                    # Export only the entry part for open trades
+                    self.equity_writer.write(
+                        trade_num,
+                        trade.entry_bar_index,
+                        "Entry long" if trade.size > 0 else "Entry short", 
+                        trade.entry_id,
+                        string.format_time(trade.entry_time),  # type: ignore
+                        trade.entry_price,
+                        abs(trade.size),
+                        0.0,  # No profit yet for open trades
+                        "0.00",  # No profit percent yet
+                        0.0,  # No cumulative profit change
+                        "0.00",  # No cumulative profit percent change  
+                        0.0,  # No max runup yet
+                        "0.00",  # No max runup percent yet
+                        0.0,  # No max drawdown yet
+                        "0.00",  # No max drawdown percent yet
+                    )
+                    
             # Close the plot writer
             if self.plot_writer:
                 self.plot_writer.close()
