@@ -172,6 +172,9 @@ class SeriesImpl(Generic[T]):
         :raises IndexError: If index is out of range or negative
         :raises TypeError: If key is not int or slice
         """
+        if isinstance(key, float):
+            key = int(key)
+
         if isinstance(key, int):
             # Original integer indexing behavior
             if key < 0:
