@@ -88,3 +88,39 @@ def rgb(r: int, g: int, b: int, transp: float = 0) -> Color:
     :param transp: Transparency percentage (0-100, 0: not transparent, 100: invisible)
     """
     return Color.rgb(r, g, b, transp)
+
+
+def from_gradient(value: int | float, bottom_value: int | float, top_value: int | float,
+                  bottom_color: Color, top_color: Color) -> Color:
+    """
+    Based on the relative position of value in the bottom_value to top_value range,
+    the function returns a color from the gradient defined by bottom_color to top_color.
+
+    :param value: Value to calculate the position-dependent color
+    :param bottom_value: Bottom position value corresponding to bottom_color
+    :param top_value: Top position value corresponding to top_color
+    :param bottom_color: Bottom position color
+    :param top_color: Top position color
+    :return: A color calculated from the linear gradient between bottom_color to top_color
+    """
+    # Handle edge cases
+    if top_value == bottom_value:
+        return bottom_color
+
+    # Calculate the position as a ratio (0.0 to 1.0)
+    position = (value - bottom_value) / (top_value - bottom_value)
+
+    # Clamp position to [0, 1] range
+    position = max(0.0, min(1.0, position))
+
+    # Interpolate RGB components
+    red_comp = int(bottom_color.r + (top_color.r - bottom_color.r) * position)
+    green_comp = int(bottom_color.g + (top_color.g - bottom_color.g) * position)
+    blue_comp = int(bottom_color.b + (top_color.b - bottom_color.b) * position)
+    
+    # Interpolate transparency
+    bottom_transp = bottom_color.t
+    top_transp = top_color.t
+    transp = bottom_transp + (top_transp - bottom_transp) * position
+
+    return Color.rgb(red_comp, green_comp, blue_comp, transp)

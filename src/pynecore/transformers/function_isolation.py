@@ -67,7 +67,8 @@ NON_TRANSFORMABLE_FUNCTIONS = {
     'lib.map.put', 'lib.map.put_all', 'lib.map.remove', 'lib.map.size', 'lib.map.values',
 
     # Color functions
-    'lib.color.new',
+    'lib.color.new', 'lib.color.r', 'lib.color.g', 'lib.color.b', 'lib.color.a',
+    'lib.color.rgb', 'lib.color.from_gradient',
 
     # Strategy functions
     'lib.strategy.cancel', 'lib.strategy.cancel_all',
