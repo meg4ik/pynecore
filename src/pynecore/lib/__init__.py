@@ -2,6 +2,7 @@
 Builtin library of Pyne
 """
 from typing import TYPE_CHECKING, TypeAlias, Any, Callable
+from types import GenericAlias
 
 if TYPE_CHECKING:
     from ..types.session import SessionInfo
@@ -288,8 +289,8 @@ def is_na(source: Any = None) -> bool | NA:
     """
     if source is None:
         return NA(None)
-    # If the source is a type, return NA of that type
-    if isinstance(source, type) and source is not NA:
+    # If the source is a type or GenericAlias (like list[float]), return NA of that type
+    if isinstance(source, (type, GenericAlias)) and source is not NA:
         return NA(source)
     return isinstance(source, NA) or source is NA
 
