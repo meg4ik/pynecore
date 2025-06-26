@@ -502,6 +502,11 @@ class PersistentTransformer(ast.NodeTransformer):
                     )
                 )
             return None
+        
+        # For non-Persistent annotated assignments, we still need to visit the value
+        # to transform any persistent variable references
+        if node.value:
+            node.value = self.visit(cast(ast.AST, node.value))
         return node
 
     def visit_Assign(self, node: ast.Assign) -> ast.Assign:
