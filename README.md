@@ -7,6 +7,8 @@
 <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.11%2B-blue" alt="Python"></a>
 <a href="https://opensource.org/licenses/Apache-2.0"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a>
 
+**🚀 Have Pine Script code? [Get automatic Python translation →](#pine-script-migration-made-easy)**
+
 </div>
 
 ## What is PyneCore?
@@ -158,6 +160,23 @@ pyne run my_script.py ccxt_BYBIT_BTC_USDT_USDT_1D.ohlcv
 - **Open Source Foundation**: The core library and runtime is open source under Apache 2.0 license
 - **Professional Trading Tools**: Build institutional-grade systems with Pine Script simplicity
 - **Advanced Backtesting**: Run sophisticated strategy tests outside platform constraints
+
+## Pine Script Migration Made Easy
+
+Have existing Pine Script code you want to run in Python? **PyneSys now offers automatic Pine 
+Script to PyneCore translation** through our [web platform](https://pynesys.io) and [Discord bot](https://discord.com/invite/7rhPbSqSG7).
+
+### 🚀 Get Started Instantly
+- **Try for free on Discord**: Use `/pine-help` in our [Discord](https://discord.com/invite/7rhPbSqSG7) for instant conversion - 3 free translations!
+- **Full service**: Visit [pynesys.io](https://pynesys.io) for subscriptions and higher limits
+
+### 💡 Support the Ecosystem
+Love PyneCore and want to see it grow? Consider a **Seed subscription or higher** ($5+/mo) to support continued development:
+- **Daily translations** of your Pine Script files (5+ per day)
+- **Larger script support** for complex indicators and strategies
+- **Direct contribution** to keeping PyneCore open source and advancing
+
+*Every subscription helps maintain this free, open-source runtime and drives innovation in algorithmic trading tools.*
 
 ## Documentation & Support
 
