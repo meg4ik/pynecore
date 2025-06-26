@@ -105,6 +105,9 @@ class FunctionIsolationTransformer(ast.NodeTransformer):
         self.in_default_arg = False
         # Track dataclass classes
         self.dataclass_classes: set[str] = set()
+        # Track inner functions that shadow builtins per scope
+        # Maps scope -> set of function names that shadow builtins
+        self.shadowed_builtins_by_scope: dict[str, set[str]] = {}
 
     def _is_dataclass_constructor(self, func: ast.Name | ast.Attribute) -> bool:
         """
@@ -154,7 +157,17 @@ class FunctionIsolationTransformer(ast.NodeTransformer):
 
         # Handle direct builtin functions
         if '.' not in func_path:
-            return func_path in vars(builtins)
+            # Check if this is an inner function that shadows a builtin
+            if func_path in vars(builtins):
+                # Check in current scope if this builtin is shadowed
+                if self.current_function and self.current_function in self.shadowed_builtins_by_scope:
+                    if func_path in self.shadowed_builtins_by_scope[self.current_function]:
+                        # This is a shadowed builtin, so we should isolate it
+                        return False
+                # It's a real builtin
+                return True
+            # Not a builtin at all
+            return False
 
         # Get module path
         module_path = func_path.split('.')[0]
@@ -305,6 +318,16 @@ class FunctionIsolationTransformer(ast.NodeTransformer):
 
         # Set current function to this function's name
         self.current_function = node.name
+
+        # Check if this is an inner function that shadows a builtin
+        # Inner functions should be isolated if they shadow builtins
+        if self.parent_functions and node.name in vars(builtins):
+            # Track this function as shadowing a builtin in its parent scope
+            parent_scope = self.parent_functions[-1] if self.parent_functions else None
+            if parent_scope:
+                if parent_scope not in self.shadowed_builtins_by_scope:
+                    self.shadowed_builtins_by_scope[parent_scope] = set()
+                self.shadowed_builtins_by_scope[parent_scope].add(node.name)
 
         # Process decorators in decorator context
         old_decorator = self.in_decorator
