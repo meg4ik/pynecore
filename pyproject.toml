@@ -6,6 +6,7 @@ build-backend = "setuptools.build_meta"
 package-dir = { "pynecore" = "src/pynecore" }
 packages.find = { where = ["src"] }
 include-package-data = true
+zip-safe = false  # Critical for import hooks
 
 [tool.setuptools.package-data]
 "pynecore" = ["*.pyi"]
