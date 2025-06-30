@@ -6,6 +6,8 @@ from types import ModuleType
 # noinspection PyProtectedMember
 from ..types.na import NA
 
+__all__ = ['SeriesImpl', 'inline_series']
+
 T = TypeVar('T')
 
 
@@ -273,3 +275,23 @@ class ReadOnlySeriesView(Generic[T]):
     def __repr__(self) -> str:
         """Get string representation"""
         return f"ReadOnlySeriesView({list(self)})"
+
+
+__series_function_vars__ = {'create_series': ['__series_create_series_series__']}
+__series_create_series_series__: SeriesImpl = SeriesImpl()
+
+
+def inline_series(value: T, idx: int) -> SeriesImpl[T]:
+    """
+    Inline series creation
+    It is mainly for compiled codes
+
+    :param value: The value to store
+    :param idx: The index, 0 is the last, 1 is the second last and so on
+    :return:
+    """
+    if isinstance(idx, float):
+        idx = int(idx)
+    global __series_create_series_series__
+    __series_create_series_series__.add(value)
+    return __series_create_series_series__[idx]
