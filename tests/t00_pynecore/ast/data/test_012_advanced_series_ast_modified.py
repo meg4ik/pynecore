@@ -4,7 +4,7 @@
 from pynecore.core.series import SeriesImpl
 __series_main·s2__ = SeriesImpl()
 __series_main·test·s__ = SeriesImpl()
-__series_function_vars__ = {'main.test': ['__series_main·test·s__'], 'main': ['__series_main·s2__']}
+__series_function_vars__ = {'main.test': ('__series_main·test·s__',), 'main': ('__series_main·s2__',)}
 
 def main():
 

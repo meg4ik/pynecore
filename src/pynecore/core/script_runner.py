@@ -332,8 +332,7 @@ class ScriptRunner:
                 lib._plot_data.clear()
 
                 # Call the progress callback
-                if on_progress:
-                    assert lib._datetime is not None
+                if on_progress and lib._datetime is not None:
                     on_progress(lib._datetime.replace(tzinfo=None))
 
                 # Update bar index

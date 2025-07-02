@@ -4,7 +4,7 @@
 __persistent_main·cumulative__ = 0.0
 __persistent_main·cumulative___kahan_c__ = 0.0
 __persistent_main·counter__ = 0
-__persistent_function_vars__ = {'main': ['__persistent_main·cumulative__', '__persistent_main·cumulative___kahan_c__', '__persistent_main·counter__']}
+__persistent_function_vars__ = {'main': ('__persistent_main·cumulative__', '__persistent_main·cumulative___kahan_c__', '__persistent_main·counter__')}
 
 def main():
     global __persistent_main·counter__, __persistent_main·cumulative__, __persistent_main·cumulative___kahan_c__

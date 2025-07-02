@@ -10,7 +10,7 @@ __series_main·a__ = SeriesImpl()
 __series_main·c__ = SeriesImpl()
 __series_main·nested·__lib·high__ = SeriesImpl()
 __series_main·nested·b__ = SeriesImpl()
-__series_function_vars__ = {'main': ['__series_main·__lib·close__', '__series_main·__lib·low__', '__series_main·a__', '__series_main·c__'], 'main.nested': ['__series_main·nested·__lib·high__', '__series_main·nested·b__']}
+__series_function_vars__ = {'main': ('__series_main·__lib·close__', '__series_main·__lib·low__', '__series_main·a__', '__series_main·c__'), 'main.nested': ('__series_main·nested·__lib·high__', '__series_main·nested·b__')}
 __scope_id__ = ''
 
 def main():
@@ -24,6 +24,6 @@ def main():
         __lib·high = __series_main·nested·__lib·high__.add(lib.high)
         b = __series_main·nested·b__.add(__series_main·nested·__lib·high__[1])
         return b
-    result = isolate_function(nested, 'main|nested|0', __scope_id__)()
+    result = isolate_function(nested, 'main|nested|0', __scope_id__, -1)()
     c = __series_main·c__.add(__series_main·__lib·low__[2])
     print(result, c)

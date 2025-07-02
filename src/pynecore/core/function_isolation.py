@@ -27,8 +27,9 @@ def reset_step():
     _call_counters.clear()
 
 
-def isolate_function(func: FunctionType | Callable, call_id: str | None, parent_scope: str,
-                     closure_argument_count=-1) -> FunctionType:
+def isolate_function(
+        func: FunctionType | Callable, call_id: str | None, parent_scope: str, closure_argument_count=-1
+) -> FunctionType | Callable:
     """
     Create a new function instance with isolated globals if the function has persistent or series globals.
 
@@ -40,7 +41,7 @@ def isolate_function(func: FunctionType | Callable, call_id: str | None, parent_
     """
     # If there is no call ID, return the function as is
     if call_id is None:
-        return func
+        return cast(FunctionType, func)
 
     # If it is a type object, return it as is
     if isinstance(func, type):
@@ -48,13 +49,14 @@ def isolate_function(func: FunctionType | Callable, call_id: str | None, parent_
 
     # If it is a classmethod (bound method where __self__ is a class), return it as is
     if hasattr(func, '__self__') and isinstance(func.__self__, type):
-        return func
+        return cast(FunctionType, func)
 
     # Check if this is an Exported proxy and unwrap it
     if isinstance(func, Exported):
-        func = func.__fn__
-        if func is None:
+        unwrapped_func = func.__fn__
+        if unwrapped_func is None:
             raise ValueError("Exported proxy has not been initialized with a function yet")
+        func = unwrapped_func
 
     # If it is an overloaded function, returned by the dispatcher
     is_overloaded = call_id == '__overloaded__?'
@@ -71,17 +73,17 @@ def isolate_function(func: FunctionType | Callable, call_id: str | None, parent_
 
         # Append the call counter to the call ID
         # call_id = f"{parent_scope}→{call_id}#{cc}"
-        call_id = (cck, cc)
+        call_id_key: str | tuple = (cck, cc)
     else:
-        call_id = parent_scope
+        call_id_key = parent_scope
 
     # If the function is overloaded, we need to remove the dispatcher from the cache to override it with implementation
     if is_overloaded:
-        del _function_cache[call_id]
+        del _function_cache[call_id_key]
 
     try:
         # If a function is cached we can just call it
-        isolated_function = _function_cache[call_id]
+        isolated_function = _function_cache[call_id_key]
 
         if closure_argument_count == -1:  # If closures have been converted to  arguments, no closure is needed
             # We need to create new instance in every run only if the function is inside the main function
@@ -102,7 +104,7 @@ def isolate_function(func: FunctionType | Callable, call_id: str | None, parent_
     try:
         new_globals = dict(func.__globals__)
     except AttributeError:  # This is a builtin function (it should be filtered in the transformer)
-        return func
+        return cast(FunctionType, func)
 
     # The qualified name of the function, this name is used in the globals registry by transformer
     qualname = func.__qualname__.replace('<locals>.', '')
@@ -154,7 +156,7 @@ def isolate_function(func: FunctionType | Callable, call_id: str | None, parent_
                 old_value = new_globals[key]
                 new_globals[key] = type(old_value)(old_value._max_bars_back)  # noqa
 
-    new_globals['__scope_id__'] = call_id
+    new_globals['__scope_id__'] = call_id_key
 
     # Create a new function with new closure and globals
     isolated_function = FunctionType(
@@ -165,5 +167,5 @@ def isolate_function(func: FunctionType | Callable, call_id: str | None, parent_
         func.__closure__
     )
 
-    _function_cache[call_id] = isolated_function
+    _function_cache[call_id_key] = isolated_function
     return isolated_function
