@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Optional
 import statistics
 
-from typer import Option, secho, Exit
+from typer import Option, Argument, secho, Exit
 from rich.table import Table
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
@@ -19,12 +19,12 @@ __all__ = []
 
 @app.command(name="benchmark")
 def benchmark(
+        script: Optional[Path] = Argument("demo", help="Script to benchmark"),
+        data: Optional[Path] = Argument("demo", help="Data file to use"),
         iterations: int = Option(10, "--iterations", "-i", help="Number of iterations to run"),
-        script: Optional[Path] = Option("demo", "--script", "-s", help="Script to benchmark"),
-        data: Optional[Path] = Option("demo", "--data", "-d", help="Data file to use"),
-        candles: int = Option(365, "--candles", "-c", help="Number of candles to process"),
+        candles: int = Option(5000, "--candles", "-c", help="Number of candles to process"),
         warmup: int = Option(2, "--warmup", "-w", help="Number of warmup iterations"),
-        no_output: bool = Option(False, "--no-output", help="Don't write CSV output"),
+        no_output: bool = Option(True, "--no-output", help="Don't write CSV output"),
 ):
     """
     Benchmark script execution performance

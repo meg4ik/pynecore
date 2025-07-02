@@ -230,8 +230,8 @@ def run(
                     except Exception:  # noqa
                         pass  # Ignore any errors in worker thread
 
-                    # Wait ~16.67ms (60Hz refresh rate)
-                    time.sleep(1 / 60)
+                    # Wait ~33.33ms (30Hz refresh rate)
+                    time.sleep(1 / 30)
 
             # Start worker thread
             worker = threading.Thread(target=progress_worker, daemon=True)

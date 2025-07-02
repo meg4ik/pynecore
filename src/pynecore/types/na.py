@@ -105,6 +105,43 @@ class NA(Generic[T]):
         return NA(self.type)
 
     #
+    # Bitwise operations
+    #
+
+    def __and__(self, _: Any) -> NA[T]:
+        return NA(self.type)
+
+    def __rand__(self, _: Any) -> NA[T]:
+        return NA(self.type)
+
+    def __or__(self, _: Any) -> NA[T]:
+        return NA(self.type)
+
+    def __ror__(self, _: Any) -> NA[T]:
+        return NA(self.type)
+
+    def __xor__(self, _: Any) -> NA[T]:
+        return NA(self.type)
+
+    def __rxor__(self, _: Any) -> NA[T]:
+        return NA(self.type)
+
+    def __lshift__(self, _: Any) -> NA[T]:
+        return NA(self.type)
+
+    def __rlshift__(self, _: Any) -> NA[T]:
+        return NA(self.type)
+
+    def __rshift__(self, _: Any) -> NA[T]:
+        return NA(self.type)
+
+    def __rrshift__(self, _: Any) -> NA[T]:
+        return NA(self.type)
+
+    def __invert__(self) -> NA[T]:
+        return NA(self.type)
+
+    #
     # All comparisons should be false
     #
 

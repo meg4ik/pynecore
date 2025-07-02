@@ -253,7 +253,7 @@ class ScriptRunner:
                 # Update lib properties
                 _set_lib_properties(candle, self.bar_index, self.tz, lib)
 
-                # Reset function isolation
+                # Reset function increments
                 function_isolation.reset_step()
 
                 # Process limit orders
@@ -355,7 +355,7 @@ class ScriptRunner:
                     self.equity_writer.write(
                         trade_num,
                         trade.entry_bar_index,
-                        "Entry long" if trade.size > 0 else "Entry short", 
+                        "Entry long" if trade.size > 0 else "Entry short",
                         trade.entry_id,
                         string.format_time(trade.entry_time),  # type: ignore
                         trade.entry_price,
@@ -363,13 +363,13 @@ class ScriptRunner:
                         0.0,  # No profit yet for open trades
                         "0.00",  # No profit percent yet
                         0.0,  # No cumulative profit change
-                        "0.00",  # No cumulative profit percent change  
+                        "0.00",  # No cumulative profit percent change
                         0.0,  # No max runup yet
                         "0.00",  # No max runup percent yet
                         0.0,  # No max drawdown yet
                         "0.00",  # No max drawdown percent yet
                     )
-                    
+
             # Close the plot writer
             if self.plot_writer:
                 self.plot_writer.close()

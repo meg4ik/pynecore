@@ -94,7 +94,7 @@ class PersistentTransformer(ast.NodeTransformer):
 
             for var_name, global_name in vars_dict.items():
                 function_vars.append(global_name)
-                
+
                 # Add Kahan compensation variable if it exists
                 kahan_compensation = f"{global_name}_kahan_c__"
                 if kahan_compensation in self.modified_vars.get(scope, set()):
@@ -116,7 +116,7 @@ class PersistentTransformer(ast.NodeTransformer):
                 value=ast.Dict(
                     keys=[ast.Constant(value=k) for k in function_vars_dict],
                     values=[
-                        ast.List(
+                        ast.Tuple(
                             elts=[ast.Constant(value=var) for var in vars],
                             ctx=ast.Load()
                         )
@@ -502,7 +502,7 @@ class PersistentTransformer(ast.NodeTransformer):
                     )
                 )
             return None
-        
+
         # For non-Persistent annotated assignments, we still need to visit the value
         # to transform any persistent variable references
         if node.value:
@@ -563,31 +563,31 @@ class PersistentTransformer(ast.NodeTransformer):
                 if isinstance(node.op, ast.Add) and not self._is_literal_or_na(node.value):
                     # Generate compensation variable name
                     compensation_var = f"{global_name}_kahan_c__"
-                    
+
                     # Add compensation variable to module level if not already there
-                    if compensation_var not in [assign.targets[0].id for assign in self.module_level_assigns 
-                                               if isinstance(assign, ast.Assign) and len(assign.targets) == 1 
-                                               and isinstance(assign.targets[0], ast.Name)]:
+                    if compensation_var not in [assign.targets[0].id for assign in self.module_level_assigns
+                                                if isinstance(assign, ast.Assign) and len(assign.targets) == 1
+                                                   and isinstance(assign.targets[0], ast.Name)]:
                         self.module_level_assigns.append(
                             ast.Assign(
                                 targets=[ast.Name(id=compensation_var, ctx=ast.Store())],
                                 value=ast.Constant(value=0.0)
                             )
                         )
-                    
+
                     # Mark compensation variable as modified
                     self.modified_vars[self.current_scope].add(compensation_var)
-                    
+
                     # Transform the value
                     transformed_value = self.visit(cast(ast.AST, node.value))
-                    
+
                     # Create Kahan summation sequence using walrus operator
                     # We'll use a single expression with tuple unpacking
-                    # (corrected := value - compensation, 
+                    # (corrected := value - compensation,
                     #  new_sum := var + corrected,
                     #  compensation := (new_sum - var) - corrected,
                     #  var := new_sum)[-1]
-                    
+
                     # Create the Kahan summation expression
                     kahan_expr = ast.Subscript(
                         value=ast.Tuple(
@@ -634,7 +634,7 @@ class PersistentTransformer(ast.NodeTransformer):
                         slice=ast.UnaryOp(op=ast.USub(), operand=ast.Constant(value=1)),
                         ctx=ast.Load()
                     )
-                    
+
                     # Return as an expression statement
                     return ast.Expr(value=kahan_expr)
 

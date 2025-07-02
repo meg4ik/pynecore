@@ -19,7 +19,7 @@ from ..types.chart import ChartPoint
 from ..core.overload import overload
 from . import order as _order
 from ..lib import (box as _box, line as _line, label as _label, linefill as _linefill,
-                   color as _color, extend as _extend, xloc as _xloc, yloc as _yloc, 
+                   color as _color, extend as _extend, xloc as _xloc, yloc as _yloc,
                    size as _size, text as _text, font as _font)
 
 T = TypeVar('T')
@@ -1070,12 +1070,13 @@ def stdev(id: list[Number], biased: bool = True) -> float:
                    unbiased standard deviation.
     :return: Standard deviation of the elements in the array
     """
-    if len(id) < 2:
+    a = cast(list[Number], [i for i in id if not isinstance(i, NA)])
+    if len(a) < 2:
         return 0.0
     if not biased:
-        return statistics.stdev(id)
-    mean = statistics.mean(id)
-    return math.sqrt(statistics.mean([(v - mean) ** 2 for v in id]))
+        return statistics.stdev(a)
+    mean = statistics.mean(a)
+    return math.sqrt(statistics.mean([(v - mean) ** 2 for v in a]))
 
 
 # noinspection PyShadowingBuiltins

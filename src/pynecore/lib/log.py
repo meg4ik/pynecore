@@ -63,7 +63,7 @@ handler.setFormatter(PineLogFormatter(
 logger.addHandler(handler)
 
 
-# noinspection PyPep8Naming
+# noinspection PyPep8Naming,PyUnusedLocal
 def info(formatString: str, *args: Any, **kwargs: Any) -> None:
     """
     Print an info message to the console.
@@ -75,7 +75,7 @@ def info(formatString: str, *args: Any, **kwargs: Any) -> None:
     logger.info(formatString, *args)
 
 
-# noinspection PyPep8Naming
+# noinspection PyPep8Naming,PyUnusedLocal
 def warning(formatString: str, *args: Any, **kwargs: Any) -> None:
     """
     Print a warning message to the console.
@@ -87,7 +87,7 @@ def warning(formatString: str, *args: Any, **kwargs: Any) -> None:
     logger.warning(formatString, *args)
 
 
-# noinspection PyPep8Naming
+# noinspection PyPep8Naming,PyUnusedLocal
 def error(formatString: str, *args: Any, **kwargs: Any) -> None:
     """
     Print an error message to the console.

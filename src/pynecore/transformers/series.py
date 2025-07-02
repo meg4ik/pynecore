@@ -127,7 +127,7 @@ class SeriesTransformer(ast.NodeTransformer):
             value=ast.Dict(
                 keys=[ast.Constant(value=k) for k in function_vars_dict],
                 values=[
-                    ast.List(
+                    ast.Tuple(
                         elts=[ast.Constant(value=var) for var in vars],
                         ctx=ast.Load()
                     )
