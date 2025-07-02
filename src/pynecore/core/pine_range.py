@@ -1,4 +1,4 @@
-def pine_range(from_num, to_num, step_num=None):
+def pine_range(from_num: int | float, to_num: int | float, step_num: int | float | None = None):
     """
     Emulates Pine Script's for loop range behavior.
 
@@ -10,12 +10,12 @@ def pine_range(from_num, to_num, step_num=None):
     """
     # Import Series here to avoid circular imports
     from pynecore.types.series import Series
-    
+
     # Extract values from Series if needed
     from_val = from_num[0] if isinstance(from_num, Series) else from_num
     to_val = to_num[0] if isinstance(to_num, Series) else to_num
     step_val = step_num[0] if isinstance(step_num, Series) else step_num if step_num is not None else None
-    
+
     # Determine direction based on from_val and to_val
     direction = 1 if from_val <= to_val else -1
 
