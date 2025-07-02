@@ -978,7 +978,7 @@ def slice(id: list[T], index_from: int, index_to: int) -> SequenceView[T]:
     :param index_to: Index to end the sub-array at
     :return: Slice view of the original array
     """
-    return SequenceView(id)[index_from:index_to]  # type: ignore
+    return SequenceView(id)[int(index_from):int(index_to)]  # type: ignore
 
 
 # noinspection PyShadowingBuiltins
