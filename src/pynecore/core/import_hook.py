@@ -60,6 +60,7 @@ class PyneLoader(importlib.machinery.SourceFileLoader):
             from pynecore.transformers.import_normalizer import ImportNormalizerTransformer
             from pynecore.transformers.persistent_series import PersistentSeriesTransformer
             from pynecore.transformers.lib_series import LibrarySeriesTransformer
+            from pynecore.transformers.closure_arguments_transformer import ClosureArgumentsTransformer
             from pynecore.transformers.function_isolation import FunctionIsolationTransformer
             from pynecore.transformers.module_property import ModulePropertyTransformer
             from pynecore.transformers.series import SeriesTransformer
@@ -73,6 +74,7 @@ class PyneLoader(importlib.machinery.SourceFileLoader):
             transformed = PersistentSeriesTransformer().visit(transformed)
             transformed = LibrarySeriesTransformer().visit(transformed)
             transformed = ModulePropertyTransformer().visit(transformed)
+            transformed = ClosureArgumentsTransformer().visit(transformed)
             transformed = FunctionIsolationTransformer().visit(transformed)
             transformed = SeriesTransformer().visit(transformed)
             transformed = PersistentTransformer().visit(transformed)

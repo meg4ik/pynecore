@@ -404,14 +404,18 @@ class FunctionIsolationTransformer(ast.NodeTransformer):
         if not call_id:
             return node
 
-        # Create wrapper with scope_id
+        # Check if this call has closure arguments (marked by ClosureArgumentsTransformer)
+        closure_vars_count = getattr(node, '_closure_vars_count', -1)
+
+        # Create wrapper with scope_id and closure_argument_count
         wrapped = ast.Call(
             func=ast.Call(
                 func=ast.Name(id='isolate_function', ctx=ast.Load()),
                 args=[
                     node.func,
                     ast.Constant(value=call_id),
-                    ast.Name(id='__scope_id__', ctx=ast.Load())
+                    ast.Name(id='__scope_id__', ctx=ast.Load()),
+                    ast.Constant(value=closure_vars_count)  # closure_argument_count
                 ],
                 keywords=[]
             ),

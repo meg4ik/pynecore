@@ -8,7 +8,7 @@ from .series import SeriesImpl
 __all__ = ['isolate_function', 'reset', 'reset_step']
 
 # Store all function instances
-_function_cache: dict[str, FunctionType] = {}
+_function_cache: dict[str | tuple, FunctionType] = {}
 _call_counters: dict[tuple[str, str], int] = {}
 
 
@@ -27,13 +27,15 @@ def reset_step():
     _call_counters.clear()
 
 
-def isolate_function(func: FunctionType | Callable, call_id: str | None, parent_scope: str) -> FunctionType:
+def isolate_function(func: FunctionType | Callable, call_id: str | None, parent_scope: str,
+                     closure_argument_count=-1) -> FunctionType:
     """
     Create a new function instance with isolated globals if the function has persistent or series globals.
 
     :param func: The function to create an instance of
     :param call_id: The unique call ID
     :param parent_scope: The parent scope ID
+    :param closure_argument_count: Whether the function has closure arguments
     :return: The new function instance if there are any persistent or series globals otherwise the original function
     """
     # If there is no call ID, return the function as is
@@ -81,15 +83,16 @@ def isolate_function(func: FunctionType | Callable, call_id: str | None, parent_
         # If a function is cached we can just call it
         isolated_function = _function_cache[call_id]
 
-        # We need to create new instance in every run only if the function is inside the main function
-        # Create a new function with original closure and isolated globals
-        isolated_function = FunctionType(
-            func.__code__,
-            isolated_function.__globals__,
-            func.__name__,
-            func.__defaults__,
-            func.__closure__
-        )
+        if closure_argument_count == -1:  # If closures have been converted to  arguments, no closure is needed
+            # We need to create new instance in every run only if the function is inside the main function
+            # Create a new function with original closure and isolated globals
+            isolated_function = FunctionType(
+                func.__code__,
+                isolated_function.__globals__,
+                func.__name__,
+                func.__defaults__,
+                func.__closure__
+            )
 
         return isolated_function
     except KeyError:
