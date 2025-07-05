@@ -5,7 +5,7 @@ title: "AST Transformation"
 description: "How PyneCore uses AST transformation to implement Pine Script behavior"
 icon: "code"
 date: "2025-03-31"
-lastmod: "2025-03-31"
+lastmod: "2025-07-05"
 draft: false
 toc: true
 categories: ["Advanced", "Technical Implementation"]
@@ -34,13 +34,15 @@ PyneCore applies several key transformations to Python code to make it behave li
 2. **Import Normalizer** - Standardizes import statements
 3. **PersistentSeries Transformer** - Manages the hybrid PersistentSeries type
 4. **Library Series Transformer** - Prepares library Series variables
-5. **Function Isolation Transformer** - Ensures separate state for each function call
-6. **Module Property Transformer** - Handles module properties
-7. **Series Transformer** - Handles Series variables
-8. **Persistent Transformer** - Manages persistent variables
-9. **Input Transformer** - Processes input parameters
-10. **Safe Convert Transformer** - Converts float()/int() calls to safe versions
-11. **Safe Division Transformer** - Protects against division by zero
+5. **Module Property Transformer** - Handles module properties
+6. **Closure Arguments Transformer** - Converts closure variables to function arguments
+7. **Function Isolation Transformer** - Ensures separate state for each function call
+8. **Unused Series Detector** - Removes unnecessary Series annotations for performance
+9. **Series Transformer** - Handles Series variables
+10. **Persistent Transformer** - Manages persistent variables
+11. **Input Transformer** - Processes input parameters
+12. **Safe Convert Transformer** - Converts float()/int() calls to safe versions
+13. **Safe Division Transformer** - Protects against division by zero
 
 This order ensures that dependencies between transformations are properly handled. For example, PersistentSeries transformation must happen before both Persistent and Series transformations
 
@@ -176,6 +178,44 @@ This ensures that hierarchical module names cannot collide with underscore-separ
 
 If you import a variable from a library, it does not know if it is a series or not. But if you use indexing (subscription) on it, it should initialize it as a series. This is needed, because the AST transformer does not know anything about the other files just the one it is currently transforming.
 
+### Closure Arguments Transformer
+
+The Closure Arguments transformer converts closure variables in inner functions to explicit function arguments, enabling proper function isolation.
+
+**Original code:**
+```python
+@lib.script.indicator("Test")
+def main():
+    length = 14
+    multiplier = 2.0
+    
+    def calculate(offset=0):
+        return lib.ta.sma(lib.close, length) * multiplier + offset
+    
+    return calculate() + calculate(10)
+```
+
+**Transformed code:**
+```python
+@lib.script.indicator("Test")
+def main():
+    length = 14
+    multiplier = 2.0
+    
+    def calculate(length: int, multiplier: float, offset=0):
+        return lib.ta.sma(lib.close, length) * multiplier + offset
+    
+    return calculate(length, multiplier) + calculate(length, multiplier, 10)
+```
+
+Key aspects:
+- Adds closure variables as function parameters at the beginning of parameter list
+- Preserves type annotations from original variable declarations
+- Updates all function calls to pass closure variables as arguments
+- Only processes functions inside @lib.script.indicator or @lib.script.strategy decorated main functions
+- Maintains proper scope isolation for nested functions
+- Prepares functions for the Function Isolation transformer
+
 ### Function Isolation Transformer
 
 The Function Isolation transformer ensures each function call gets its own isolated scope by wrapping functions with the isolate_function decorator.
@@ -206,6 +246,49 @@ Key aspects:
 - Maintains scope hierarchy information
 - Adds scope ID handling to each function
 - Excludes standard library and non-transformable functions
+
+### Unused Series Detector
+
+The Unused Series Detector optimizes performance by removing Series annotations from variables that are never indexed with the subscript operator.
+
+**Original code:**
+```python
+def main():
+    # This variable is never indexed - can be optimized
+    s: Series[float] = close
+    
+    def f(source: Series[float], m = 1.0):
+        # This parameter IS indexed - must keep Series annotation
+        return source * m + s[1]
+    
+    r = f(s, 2.0)
+    plot(s)
+```
+
+**Transformed code:**
+```python
+def main():
+    # Series annotation removed since s is never indexed in main scope
+    s: float = close
+    
+    def f(source: float, m = 1.0):
+        # Series annotation removed since source is never indexed in f scope
+        # Note: s[1] refers to the closure variable, not the parameter
+        return source * m + s[1]
+    
+    r = f(s, 2.0)
+    plot(s)
+```
+
+Key aspects:
+- Uses scope-aware analysis to track variable usage independently in each function scope
+- Distinguishes between variables with the same name in different scopes (e.g., closure vs parameter)
+- Only removes Series annotations from variables that are never used with subscript syntax `[index]`
+- Runs before SeriesTransformer to prevent unnecessary SeriesImpl creation
+- Significantly improves performance by avoiding Series overhead for simple variables
+- Preserves type annotations for variables that are actually indexed
+
+**Performance Impact**: This optimization can dramatically reduce memory usage and improve execution speed by eliminating unnecessary Series object creation for variables that are only used for simple arithmetic operations.
 
 ### Module Property Transformer
 

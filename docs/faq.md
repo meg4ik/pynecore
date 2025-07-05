@@ -248,10 +248,4 @@ If you encounter significant discrepancies, please report them as issues in the 
 
 ### How do I debug my PyneCore script?
 
-You can use standard Python debugging techniques:
-
-1. Print statements (`print()`)
-2. Logging (`logging` module)
-3. Python debuggers like pdb or IDE debuggers
-
-Additionally, PyneCore provides specific tools for inspecting Series variables and execution flow. Consult the [Debugging](./scripting/debugging.md) page for more information.
+PyneCore provides several debugging approaches. See the [Debugging](./debugging.md) guide for detailed information.
