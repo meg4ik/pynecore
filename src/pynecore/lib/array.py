@@ -102,7 +102,7 @@ def avg(id: list[Number]) -> float:
     :param id: Input array
     :return: Average value of the elements in the array
     """
-    return sum(id) / len(id)
+    return builtins.sum(id) / len(id)
 
 
 # noinspection PyShadowingBuiltins
