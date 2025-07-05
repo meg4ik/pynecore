@@ -47,8 +47,8 @@ class SeriesImpl(Generic[T]):
         # Internal capacity is max_bars_back + 1 (for current candle + historical bars)
         self._capacity = self._max_bars_back + 1
 
-        # The actual dynamic storage list. No pre-allocation.
-        self._buffer: list[T | NA] = []
+        # Pre-allocated buffer with None values for better performance
+        self._buffer: list[T | NA | None] = [None] * self._capacity
 
         # The next logical write position in a circular manner.
         self._write_pos = 0
@@ -91,10 +91,12 @@ class SeriesImpl(Generic[T]):
         new_capacity = new_max_bars_back + 1
         if new_capacity > old_size == old_write_pos:
             # The buffer is not yet full, and the write position is at the end.
-            # We can just modify the max_bars_back and capacity
+            # We can just modify the max_bars_back and capacity, and extend the buffer
             self._max_bars_back = new_max_bars_back
             self._max_bars_back_set = new_max_bars_back
             self._capacity = new_capacity
+            # Extend pre-allocated buffer with None values
+            self._buffer.extend([None] * (new_capacity - len(self._buffer)))
             return
 
         old_buffer = self._buffer
@@ -103,8 +105,8 @@ class SeriesImpl(Generic[T]):
         # Number of items to keep: either all old items or new_capacity, whichever is smaller.
         items_to_keep = min(old_size, new_capacity)
 
-        # Build a new empty buffer.
-        new_buffer: list[T | NA[T]] = []
+        # Build a new pre-allocated buffer.
+        new_buffer: list[T | NA[T] | None] = [None] * new_capacity
 
         if items_to_keep > 0 and old_buffer:
             # The newest item is at (old_write_pos - 1) in a circular manner.
@@ -113,7 +115,7 @@ class SeriesImpl(Generic[T]):
 
             for i in range(items_to_keep):
                 src_idx = (start_idx + i) % old_capacity
-                new_buffer.append(old_buffer[src_idx])
+                new_buffer[i] = old_buffer[src_idx]
 
         # Update references
         self._buffer = new_buffer
@@ -131,23 +133,30 @@ class SeriesImpl(Generic[T]):
         :param value: The new data to be added.
         :return: The same value that was added (for chaining or inline usage).
         """
+        # Optimize attribute lookup by using local variable
+        lib = SeriesImpl._lib
+        
         # Set data instead of adding a new one if the bar index is the same
-        if self._last_bar_index == self._lib.bar_index:
+        if self._last_bar_index == lib.bar_index:
             return self.set(value)
 
         if self._size < self._capacity:
-            # The buffer is not yet full
-            self._buffer.append(value)
+            # The buffer is not yet full - use direct indexing to pre-allocated buffer
+            self._buffer[self._write_pos] = value
             self._size += 1
-            self._write_pos = self._size
+            self._write_pos += 1
         else:
             # The buffer is full: overwrite in circular fashion
-            pos = self._write_pos % self._capacity
+            pos = self._write_pos
+            if pos >= self._capacity:
+                pos = 0
+                self._write_pos = 1
+            else:
+                self._write_pos += 1
             self._buffer[pos] = value
-            self._write_pos += 1
 
         # Store the last bar index to prevent adding more than one value per bar
-        self._last_bar_index = self._lib.bar_index
+        self._last_bar_index = lib.bar_index
 
         return value
 
@@ -161,7 +170,9 @@ class SeriesImpl(Generic[T]):
         if self._size == 0:
             return cast(NA[T], NA())
 
-        pos = (self._write_pos - 1) % self._capacity
+        pos = self._write_pos - 1
+        if pos < 0:
+            pos += self._capacity
         self._buffer[pos] = value
         return value
 
@@ -183,7 +194,9 @@ class SeriesImpl(Generic[T]):
                 raise IndexError("Negative indices not supported!")
             if key >= self._size:
                 return cast(NA[T], NA())
-            pos = (self._write_pos - 1 - key) % self._capacity
+            pos = self._write_pos - 1 - key
+            if pos < 0:
+                pos += self._capacity
             return self._buffer[pos]
 
         elif isinstance(key, slice):
@@ -259,7 +272,9 @@ class ReadOnlySeriesView(Generic[T]):
             raise IndexError("Index out of range")
 
         actual_idx = idx + self._start
-        pos = (self._write_pos - 1 - actual_idx) % self._capacity
+        pos = self._write_pos - 1 - actual_idx
+        if pos < 0:
+            pos += self._capacity
         return self._buffer[pos]
 
     def __len__(self) -> int:
@@ -269,7 +284,9 @@ class ReadOnlySeriesView(Generic[T]):
     def __iter__(self) -> Iterator[T | NA[T]]:
         """Iterate through items from newest to oldest"""
         for i in range(self._start, self._stop):
-            pos = (self._write_pos - 1 - i) % self._capacity
+            pos = self._write_pos - 1 - i
+            if pos < 0:
+                pos += self._capacity
             yield self._buffer[pos]
 
     def __repr__(self) -> str:
