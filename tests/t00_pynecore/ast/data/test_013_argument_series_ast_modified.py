@@ -2,11 +2,10 @@
 @pyne
 """
 from pynecore.core.series import SeriesImpl
-__series_main·s__ = SeriesImpl()
 __series_main·t·s__ = SeriesImpl()
 __series_t2·s1__ = SeriesImpl()
 __series_t2·s__ = SeriesImpl()
-__series_function_vars__ = {'t2': ('__series_t2·s__', '__series_t2·s1__'), 'main.t': ('__series_main·t·s__',), 'main': ('__series_main·s__',)}
+__series_function_vars__ = {'t2': ('__series_t2·s__', '__series_t2·s1__'), 'main.t': ('__series_main·t·s__',)}
 
 def t2(s: float, s1: float):
     s = __series_t2·s__.add(s)
@@ -22,4 +21,4 @@ def main():
         s = __series_main·t·s__.set(s + 1)
         print(s, __series_main·t·s__[1])
         return s
-    s = __series_main·s__.add(1)
+    s: float = 1
