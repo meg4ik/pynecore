@@ -42,7 +42,7 @@ def _get_builtin_method(method_name: str, var: Any) -> Callable | None:
 
 
 # noinspection PyShadowingNames
-def method_call(method: str | Callable, var: Any, *args, **kwargs) -> Any:
+def method_call(method: str | Callable, var: Any, *args, _closure_vars_count: int = -1, **kwargs) -> Any:
     """
     Dispatch a method call on a Pine Script variable to the appropriate handler.
 
@@ -53,6 +53,7 @@ def method_call(method: str | Callable, var: Any, *args, **kwargs) -> Any:
 
     :param method: The method to call, either as a string name (for built-in methods) or a callable (for local methods)
     :param var: The object/variable on which the method is being called (e.g., array, matrix, or custom object)
+    :param _closure_vars_count: The number of closure variables to pass to the method
     :param args: Positional arguments to pass to the method
     :param kwargs: Keyword arguments to pass to the method
     :return: The result of the method call, or None if the method cannot be dispatched
@@ -62,7 +63,7 @@ def method_call(method: str | Callable, var: Any, *args, **kwargs) -> Any:
 
     # If method is a string
     if isinstance(method, str):
-        # Support for builtin methods
+        # Support for builtin methods\
         _method = _get_builtin_method(method, var)
         if _method is not None:
             return _method(var, *args, **kwargs)
@@ -83,6 +84,14 @@ def method_call(method: str | Callable, var: Any, *args, **kwargs) -> Any:
         if _method:
             return _method(var, *args, **kwargs)
 
-        return isolate_function(method, '__method_call__', __scope_id__)(var, *args, **kwargs)
+        if _closure_vars_count > 0:
+            pre_args = args[-_closure_vars_count:]
+            args = args[:-_closure_vars_count]
+        else:
+            pre_args = ()
+
+        # If not in kwargs, check if the method has closure arguments information on the function itself
+        return (isolate_function(method, '__method_call__', __scope_id__, _closure_vars_count)
+                (*pre_args, var, *args, **kwargs))
 
     return None

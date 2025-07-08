@@ -69,7 +69,7 @@ class ClosureArgumentsTransformer(ast.NodeTransformer):
         if node.name == 'main':
             for decorator in node.decorator_list:
                 decorator_name = self._get_decorator_name(decorator)
-                if decorator_name in ('lib.script.indicator', 'lib.script.strategy'):
+                if decorator_name in ('lib.script.indicator', 'lib.script.strategy', 'script.indicator', 'script.strategy'):
                     is_main_decorated = True
                     break
 
@@ -144,6 +144,8 @@ class ClosureArgumentsTransformer(ast.NodeTransformer):
         # Check if we're calling an inner function that needs closure arguments
         if self.in_main_function and isinstance(node.func, ast.Name):
             func_name = node.func.id
+            
+            # Handle regular function calls
             if func_name in self.inner_functions:
                 # Get the closure variables for this function
                 func_key = self._get_function_key(func_name)
@@ -165,6 +167,53 @@ class ClosureArgumentsTransformer(ast.NodeTransformer):
                     # No closure variables for this function
                     setattr(node, '_has_closure_arguments', True)
                     setattr(node, '_closure_vars_count', 0)
+            
+            # Handle method_call() calls - these need special handling
+            elif func_name == 'method_call' and len(node.args) >= 2:
+                method_name = None
+                
+                # First argument can be either a string literal or a function reference
+                if (isinstance(node.args[0], ast.Constant) and 
+                    isinstance(node.args[0].value, str)):
+                    # method_call('method_name', this_object, ...) format
+                    method_name = node.args[0].value
+                elif isinstance(node.args[0], ast.Name):
+                    # method_call(method_function, this_object, ...) format
+                    method_name = node.args[0].id
+                
+                if method_name:
+                    # Check if this method name corresponds to an inner function
+                    if method_name in self.inner_functions:
+                        # Get the closure variables for this function
+                        func_key = self._get_function_key(method_name)
+                        if func_key in self.closure_vars and self.closure_vars[func_key]:
+                            # Add closure variables as arguments
+                            # For method_call: method_call(method_ref, closure_vars..., this_obj, original_args...)
+                            closure_vars = sorted(self.closure_vars[func_key])
+                            new_args = []
+                            
+                            # Keep the method name
+                            new_args.append(node.args[0])
+                            
+                            # Add closure variables after method name
+                            for var in closure_vars:
+                                new_args.append(ast.Name(id=var, ctx=ast.Load()))
+                            
+                            # Add this object after closure vars
+                            new_args.append(node.args[1])
+                            
+                            # Add original args after this object (skip first 2 which are method name and this)
+                            new_args.extend(node.args[2:])
+                            
+                            node.args = new_args
+
+                            # Mark this call as having closure arguments
+                            setattr(node, '_has_closure_arguments', True)
+                            setattr(node, '_closure_vars_count', len(closure_vars))
+                        else:
+                            # No closure variables for this method
+                            setattr(node, '_has_closure_arguments', True)
+                            setattr(node, '_closure_vars_count', 0)
 
         return node
 
@@ -337,7 +386,7 @@ class ClosureVariableCollector(ast.NodeVisitor):
         """Check if function has required decorator."""
         for decorator in node.decorator_list:
             decorator_name = self._get_decorator_name(decorator)
-            if decorator_name in ('lib.script.indicator', 'lib.script.strategy'):
+            if decorator_name in ('lib.script.indicator', 'lib.script.strategy', 'script.indicator', 'script.strategy'):
                 return True
         return False
 
