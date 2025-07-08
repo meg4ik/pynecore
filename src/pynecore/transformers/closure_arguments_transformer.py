@@ -99,8 +99,12 @@ class ClosureArgumentsTransformer(ast.NodeTransformer):
                     parent_scope = 'main'  # closure vars come from main scope
                     var_key = f"{parent_scope}.{var}"
                     annotation = self.closure_var_types.get(var_key, None)
+                    
+                    # If annotation is Persistent[T], extract the inner type T
+                    if annotation and self._is_persistent_annotation(annotation):
+                        annotation = self._extract_inner_type(annotation)
 
-                    # Add closure vars at the beginning with preserved annotation
+                    # Add closure vars at the beginning with processed annotation
                     new_args.append(ast.arg(arg=var, annotation=annotation))
                 # Add original args after closure vars
                 new_args.extend(node.args.args)
@@ -185,6 +189,27 @@ class ClosureArgumentsTransformer(ast.NodeTransformer):
     def _get_function_key(func_name: str) -> str:
         """Get unique key for a function based on its scope."""
         return 'main.' + func_name
+    
+    @staticmethod
+    def _is_persistent_annotation(annotation: ast.AST) -> bool:
+        """Check if annotation is Persistent[T] or just Persistent."""
+        if isinstance(annotation, ast.Name):
+            return annotation.id == 'Persistent'
+        elif isinstance(annotation, ast.Subscript):
+            if isinstance(annotation.value, ast.Name):
+                return annotation.value.id == 'Persistent'
+        return False
+    
+    @staticmethod
+    def _extract_inner_type(annotation: ast.AST) -> Optional[ast.AST]:
+        """Extract inner type T from Persistent[T] annotation."""
+        if isinstance(annotation, ast.Subscript):
+            # Persistent[T] -> return T
+            return annotation.slice
+        elif isinstance(annotation, ast.Name) and annotation.id == 'Persistent':
+            # Just Persistent -> return None (no specific type)
+            return None
+        return annotation
 
 
 class ClosureVariableCollector(ast.NodeVisitor):
