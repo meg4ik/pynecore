@@ -1,5 +1,6 @@
 from copy import copy as _copy
 
+from ..core.module_property import module_property
 from ..types.chart import ChartPoint
 from ..types.polyline import Polyline
 from ..types.na import NA
@@ -73,6 +74,7 @@ def delete(id: Polyline) -> None:
 
 
 # noinspection PyShadowingBuiltins
+@module_property
 def all() -> list[Polyline]:
     """
     Returns an array containing all current polyline instances drawn by the script.

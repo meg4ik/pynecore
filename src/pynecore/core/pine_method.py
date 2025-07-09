@@ -1,6 +1,12 @@
 from typing import Any, Callable
-from ..lib import array, matrix, box, line
-from ..types.matrix import Matrix
+from ..lib import array, matrix, box, line, label, table, linefill, polyline
+from ..types import matrix as matrix_types
+from ..types import line as line_types
+from ..types import box as box_types
+from ..types import label as label_types
+from ..types import table as table_types
+from ..types import linefill as linefill_types
+from ..types import polyline as polyline_types
 
 from .function_isolation import isolate_function
 
@@ -24,17 +30,26 @@ def _get_builtin_method(method_name: str, var: Any) -> Callable | None:
     :return: The built-in method, or None if not found
     """
     try:
-        if isinstance(var, list):
-            return getattr(array, method_name)
-
-        elif isinstance(var, Matrix):
-            return getattr(matrix, method_name)
-
-        elif isinstance(var, line.Line):
-            return getattr(line, method_name)
-
-        elif isinstance(var, box.Box):
-            return getattr(box, method_name)
+        var_type = type(var)
+        match var_type:
+            case _ if var_type is list:
+                return getattr(array, method_name)
+            case _ if var_type is matrix_types.Matrix:
+                return getattr(matrix, method_name)
+            case _ if var_type is line_types.Line:
+                return getattr(line, method_name)
+            case _ if var_type is box_types.Box:
+                return getattr(box, method_name)
+            case _ if var_type is label_types.Label:
+                return getattr(label, method_name)
+            case _ if var_type is table_types.Table:
+                return getattr(table, method_name)
+            case _ if var_type is linefill_types.LineFill:
+                return getattr(linefill, method_name)
+            case _ if var_type is polyline_types.Polyline:
+                return getattr(polyline, method_name)
+            case _:
+                return None
     except AttributeError:
         pass
 

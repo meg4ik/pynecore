@@ -87,6 +87,20 @@
       "type": "variable"
     }
   },
+  "lib.barmerge": {
+    "gaps_off": {
+      "type": "variable"
+    },
+    "gaps_on": {
+      "type": "variable"
+    },
+    "lookahead_off": {
+      "type": "variable"
+    },
+    "lookahead_on": {
+      "type": "variable"
+    }
+  },
   "lib.barstate": {
     "isconfirmed": {
       "type": "property"
@@ -110,7 +124,11 @@
       "type": "property"
     }
   },
-  "lib.box": {},
+  "lib.box": {
+    "all": {
+      "type": "property"
+    }
+  },
   "lib.chart": {
     "bg_color": {
       "type": "variable"
@@ -284,6 +302,9 @@
   },
   "lib.hline": {},
   "lib.label": {
+    "all": {
+      "type": "property"
+    },
     "style_arrowdown": {
       "type": "variable"
     },
@@ -349,6 +370,9 @@
     }
   },
   "lib.line": {
+    "all": {
+      "type": "property"
+    },
     "style_arrow_both": {
       "type": "variable"
     },
@@ -423,6 +447,29 @@
     }
   },
   "lib.plot": {},
+  "lib.polyline": {
+    "all": {
+      "type": "property"
+    },
+    "style_arrow_both": {
+      "type": "variable"
+    },
+    "style_arrow_left": {
+      "type": "variable"
+    },
+    "style_arrow_right": {
+      "type": "variable"
+    },
+    "style_dashed": {
+      "type": "variable"
+    },
+    "style_dotted": {
+      "type": "variable"
+    },
+    "style_solid": {
+      "type": "variable"
+    }
+  },
   "lib.position": {
     "bottom_center": {
       "type": "variable"
@@ -648,6 +695,18 @@
     "session": {
       "type": "variable"
     },
+    "target_price_average": {
+      "type": "variable"
+    },
+    "target_price_date": {
+      "type": "variable"
+    },
+    "target_price_high": {
+      "type": "variable"
+    },
+    "target_price_low": {
+      "type": "variable"
+    },
     "ticker": {
       "type": "variable"
     },
@@ -690,6 +749,11 @@
       "type": "property"
     },
     "wvad": {
+      "type": "property"
+    }
+  },
+  "lib.table": {
+    "all": {
       "type": "property"
     }
   },

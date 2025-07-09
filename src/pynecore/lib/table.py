@@ -1,3 +1,4 @@
+from ..core.module_property import module_property
 from ..types.table import Table
 from ..types.na import NA
 from ..lib import (color as _color, position as _position, size as _size, text as _text, font as _font)
@@ -42,6 +43,7 @@ def new(position: _position.Position, columns: int, rows: int, bgcolor: _color.C
 
 
 # noinspection PyShadowingBuiltins
+@module_property
 def all() -> list[Table]:
     """
     Returns an array filled with all the current tables drawn by the script.

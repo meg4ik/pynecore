@@ -69,7 +69,8 @@ class ClosureArgumentsTransformer(ast.NodeTransformer):
         if node.name == 'main':
             for decorator in node.decorator_list:
                 decorator_name = self._get_decorator_name(decorator)
-                if decorator_name in ('lib.script.indicator', 'lib.script.strategy', 'script.indicator', 'script.strategy'):
+                if decorator_name in ('lib.script.indicator', 'lib.script.strategy',
+                                      'script.indicator', 'script.strategy'):
                     is_main_decorated = True
                     break
 
@@ -99,7 +100,7 @@ class ClosureArgumentsTransformer(ast.NodeTransformer):
                     parent_scope = 'main'  # closure vars come from main scope
                     var_key = f"{parent_scope}.{var}"
                     annotation = self.closure_var_types.get(var_key, None)
-                    
+
                     # If annotation is Persistent[T], extract the inner type T
                     if annotation and self._is_persistent_annotation(annotation):
                         annotation = self._extract_inner_type(annotation)
@@ -144,7 +145,7 @@ class ClosureArgumentsTransformer(ast.NodeTransformer):
         # Check if we're calling an inner function that needs closure arguments
         if self.in_main_function and isinstance(node.func, ast.Name):
             func_name = node.func.id
-            
+
             # Handle regular function calls
             if func_name in self.inner_functions:
                 # Get the closure variables for this function
@@ -167,20 +168,20 @@ class ClosureArgumentsTransformer(ast.NodeTransformer):
                     # No closure variables for this function
                     setattr(node, '_has_closure_arguments', True)
                     setattr(node, '_closure_vars_count', 0)
-            
+
             # Handle method_call() calls - these need special handling
             elif func_name == 'method_call' and len(node.args) >= 2:
                 method_name = None
-                
+
                 # First argument can be either a string literal or a function reference
-                if (isinstance(node.args[0], ast.Constant) and 
-                    isinstance(node.args[0].value, str)):
+                if (isinstance(node.args[0], ast.Constant) and
+                        isinstance(node.args[0].value, str)):
                     # method_call('method_name', this_object, ...) format
                     method_name = node.args[0].value
                 elif isinstance(node.args[0], ast.Name):
                     # method_call(method_function, this_object, ...) format
                     method_name = node.args[0].id
-                
+
                 if method_name:
                     # Check if this method name corresponds to an inner function
                     if method_name in self.inner_functions:
@@ -191,20 +192,20 @@ class ClosureArgumentsTransformer(ast.NodeTransformer):
                             # For method_call: method_call(method_ref, closure_vars..., this_obj, original_args...)
                             closure_vars = sorted(self.closure_vars[func_key])
                             new_args = []
-                            
+
                             # Keep the method name
                             new_args.append(node.args[0])
-                            
+
                             # Add closure variables after method name
                             for var in closure_vars:
                                 new_args.append(ast.Name(id=var, ctx=ast.Load()))
-                            
+
                             # Add this object after closure vars
                             new_args.append(node.args[1])
-                            
+
                             # Add original args after this object (skip first 2 which are method name and this)
                             new_args.extend(node.args[2:])
-                            
+
                             node.args = new_args
 
                             # Mark this call as having closure arguments
@@ -238,7 +239,7 @@ class ClosureArgumentsTransformer(ast.NodeTransformer):
     def _get_function_key(func_name: str) -> str:
         """Get unique key for a function based on its scope."""
         return 'main.' + func_name
-    
+
     @staticmethod
     def _is_persistent_annotation(annotation: ast.AST) -> bool:
         """Check if annotation is Persistent[T] or just Persistent."""
@@ -248,7 +249,7 @@ class ClosureArgumentsTransformer(ast.NodeTransformer):
             if isinstance(annotation.value, ast.Name):
                 return annotation.value.id == 'Persistent'
         return False
-    
+
     @staticmethod
     def _extract_inner_type(annotation: ast.AST) -> Optional[ast.AST]:
         """Extract inner type T from Persistent[T] annotation."""

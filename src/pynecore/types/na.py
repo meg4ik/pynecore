@@ -164,7 +164,10 @@ class NA(Generic[T]):
     # In contexts
     #
 
-    def __getattr__(self, _: str) -> NA[T]:
+    def __getattr__(self, name: str) -> NA[T]:
+        # Don't return self for special attributes
+        if name.startswith('__'):
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
         return self
 
     def __getitem__(self, _: Any) -> NA[T]:

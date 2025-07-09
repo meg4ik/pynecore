@@ -41,6 +41,12 @@ class SymInfo:
     avg_spread: float | None = None
     taker_fee: float | None = None
     maker_fee: float | None = None
+    
+    # Analyst price target information (added 2025-07-08)
+    target_price_average: float | None = None
+    target_price_high: float | None = None
+    target_price_low: float | None = None
+    target_price_date: int | None = None  # UNIX timestamp
 
     @classmethod
     def load_toml(cls, path: Path) -> Self:
@@ -112,7 +118,11 @@ class SymInfo:
             volumetype=symbol.get('volumetype', 'base'),
             avg_spread=symbol.get('avg_spread'),
             taker_fee=symbol.get('taker_fee'),
-            maker_fee=symbol.get('maker_fee')
+            maker_fee=symbol.get('maker_fee'),
+            target_price_average=symbol.get('target_price_average'),
+            target_price_high=symbol.get('target_price_high'),
+            target_price_low=symbol.get('target_price_low'),
+            target_price_date=symbol.get('target_price_date')
         )
 
     def save_toml(self, path: Path):
@@ -146,7 +156,8 @@ class SymInfo:
         # Basic fields
         for key in ['prefix', 'description', 'ticker', 'currency', 'basecurrency',
                     'period', 'type', 'mintick', 'pricescale', 'minmove', 'pointvalue',
-                    'timezone', 'volumetype', 'avg_spread', 'taker_fee', 'maker_fee']:
+                    'timezone', 'volumetype', 'avg_spread', 'taker_fee', 'maker_fee',
+                    'target_price_average', 'target_price_high', 'target_price_low', 'target_price_date']:
             lines.append(format_field(key, getattr(self, key)))
 
         # Arrays of tables

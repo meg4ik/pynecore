@@ -1,6 +1,7 @@
 from copy import copy as _copy
 
 from ..core.overload import overload
+from ..core.module_property import module_property
 
 from ..types.box import Box
 from ..types.na import NA
@@ -137,7 +138,9 @@ def new(left: int, top: float, right: int, bottom: float,
 
 
 # noinspection PyShadowingBuiltins
+@module_property
 def all() -> list[Box]:
+    """Returns all box objects"""
     return _registry
 
 

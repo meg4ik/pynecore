@@ -1,6 +1,7 @@
 from copy import copy as _copy
 
 from ..core.overload import overload
+from ..core.module_property import module_property
 from ..types.chart import ChartPoint
 from ..types.label import LabelStyleEnum, Label
 from ..types.na import NA
@@ -33,7 +34,7 @@ style_text_outline = LabelStyleEnum()
 
 
 @overload
-def new(point: ChartPoint, text: str = "", xloc: _xloc.XLoc = _xloc.bar_index, 
+def new(point: ChartPoint, text: str = "", xloc: _xloc.XLoc = _xloc.bar_index,
         yloc: _yloc.YLoc = _yloc.price, color: _color.Color = _color.blue,
         style: LabelStyleEnum = style_label_down, textcolor: _color.Color = _color.white,
         size: _size.Size = _size.normal, textalign: _text.AlignEnum = _text.align_center,
@@ -86,7 +87,7 @@ def new(point: ChartPoint, text: str = "", xloc: _xloc.XLoc = _xloc.bar_index,
 @overload
 def new(x: int, y: int | float, text: str = "", xloc: _xloc.XLoc = _xloc.bar_index,
         yloc: _yloc.YLoc = _yloc.price, color: _color.Color = _color.blue,
-        style: LabelStyleEnum = style_label_down, textcolor: _color.Color = _color.white,  
+        style: LabelStyleEnum = style_label_down, textcolor: _color.Color = _color.white,
         size: _size.Size = _size.normal, textalign: _text.AlignEnum = _text.align_center,
         tooltip: str = "", text_font_family: _font.FontFamilyEnum = _font.family_default,
         force_overlay: bool = False, text_formatting: _text.FormatEnum = _text.format_none):
@@ -130,6 +131,7 @@ def new(x: int, y: int | float, text: str = "", xloc: _xloc.XLoc = _xloc.bar_ind
 
 
 # noinspection PyShadowingBuiltins
+@module_property
 def all() -> list[Label]:
     """Returns all label objects"""
     return _registry

@@ -1,6 +1,7 @@
 from copy import copy as _copy
 
 from ..core.overload import overload
+from ..core.module_property import module_property
 from ..types.chart import ChartPoint
 from ..types.line import LineEnum, Line
 from ..types.na import NA
@@ -99,6 +100,7 @@ def new(x1: int, y1: float, x2: int, y2: float,
 
 
 # noinspection PyShadowingBuiltins
+@module_property
 def all() -> list[Line]:
     """Returns all line objects"""
     return _registry
