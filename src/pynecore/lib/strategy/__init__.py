@@ -1,9 +1,10 @@
-from typing import cast
+from typing import cast, TYPE_CHECKING
 
 from datetime import datetime, UTC
 from collections import deque
 from copy import copy
 
+from ...core.module_property import module_property
 from ... import lib
 from .. import syminfo
 
@@ -14,18 +15,30 @@ from ...types.na import NA
 from . import direction
 from . import oca as _oca
 
+from . import closedtrades, opentrades
+
 __all__ = [
     "fixed", "cash", "percent_of_equity",
     "long", "short", 'direction',
 
     'Trade', 'Order', 'Position',
     "cancel", "cancel_all", "close", "close_all", "entry", "exit",
+
+    "closedtrades", "opentrades",
 ]
+
+#
+# Callable modules
+#
+
+if TYPE_CHECKING:
+    from closedtrades import closedtrades
+    from opentrades import opentrades
+
 
 #
 # Types
 #
-
 
 class _OrderType(IntEnum):
     """ Order type """
@@ -101,7 +114,7 @@ class Order:
 
     def __repr__(self):
         return f"Order(order_id={self.order_id}; exit_id={self.exit_id}; size={self.size}; type: {self.order_type}; " \
-            f"limit={self.limit}; stop={self.stop}; oca_name={self.oca_name}; comment={self.comment})"
+               f"limit={self.limit}; stop={self.stop}; oca_name={self.oca_name}; comment={self.comment})"
 
 
 class Trade:
@@ -153,8 +166,8 @@ class Trade:
 
     def __repr__(self):
         return f"Trade(entry_id={self.entry_id}; size={self.size}; entry_bar_index: {self.entry_bar_index}; " \
-            f"entry_price={self.entry_price}; exit_price={self.exit_price}; commission={self.commission}; " \
-            f"entry_equity={self.entry_equity}; exit_equity={self.exit_equity}"
+               f"entry_price={self.entry_price}; exit_price={self.exit_price}; commission={self.commission}; " \
+               f"entry_equity={self.entry_equity}; exit_equity={self.exit_equity}"
 
     #
     # Support csv.DictWriter
@@ -970,3 +983,111 @@ def exit(id: str, from_entry: str | NA[str] = NA(str),
     order = Order(from_entry, size, exit_id=id, order_type=_order_type_close, limit=limit, stop=stop,
                   oca_name=oca_name, comment=comment, alert_message=alert_message)
     position.orders[id] = order
+
+
+#
+# Properties
+#
+
+# noinspection PyProtectedMember
+@module_property
+def equity() -> float | NA[float]:
+    if lib._script is None or lib._script.position is None:
+        return 0.0
+    return lib._script.position.equity
+
+
+# noinspection PyProtectedMember
+@module_property
+def eventrades() -> int | NA[int]:
+    if lib._script is None or lib._script.position is None:
+        return 0
+    return lib._script.position.eventrades
+
+
+# noinspection PyProtectedMember
+@module_property
+def initial_capital() -> float:
+    if lib._script is None or lib._script.initial_capital is None:
+        return 0.0
+    return lib._script.initial_capital
+
+
+# noinspection PyProtectedMember
+@module_property
+def grossloss() -> float | NA[float]:
+    if lib._script is None or lib._script.position is None or lib._script.position.open_commission is None:
+        return 0.0
+    return lib._script.position.grossloss + lib._script.position.open_commission
+
+
+# noinspection PyProtectedMember
+@module_property
+def grossprofit() -> float | NA[float]:
+    if lib._script is None or lib._script.position is None:
+        return 0.0
+    return lib._script.position.grossprofit
+
+
+# noinspection PyProtectedMember
+@module_property
+def losstrades() -> int:
+    if lib._script is None or lib._script.position is None:
+        return 0
+    return lib._script.position.losstrades
+
+
+# noinspection PyProtectedMember
+@module_property
+def max_drawdown() -> float | NA[float]:
+    if lib._script is None or lib._script.position is None:
+        return 0.0
+    return lib._script.position.max_drawdown
+
+
+# noinspection PyProtectedMember
+@module_property
+def max_runup() -> float | NA[float]:
+    if lib._script is None or lib._script.position is None:
+        return 0.0
+    return lib._script.position.max_runup
+
+
+# noinspection PyProtectedMember
+@module_property
+def netprofit() -> float | NA[float]:
+    if lib._script is None or lib._script.position is None:
+        return 0.0
+    return lib._script.position.netprofit
+
+
+# noinspection PyProtectedMember
+@module_property
+def openprofit() -> float | NA[float]:
+    if lib._script is None or lib._script.position is None:
+        return 0.0
+    return lib._script.position.openprofit
+
+
+# noinspection PyProtectedMember
+@module_property
+def position_size() -> float | NA[float]:
+    if lib._script is None or lib._script.position is None:
+        return 0.0
+    return lib._script.position.size
+
+
+# noinspection PyProtectedMember
+@module_property
+def position_avg_price() -> float | NA[float]:
+    if lib._script is None or lib._script.position is None:
+        return 0.0
+    return lib._script.position.avg_price
+
+
+# noinspection PyProtectedMember
+@module_property
+def wintrades() -> int | NA[int]:
+    if lib._script is None or lib._script.position is None:
+        return 0
+    return lib._script.position.wintrades

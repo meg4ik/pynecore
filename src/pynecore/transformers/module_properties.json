@@ -602,20 +602,60 @@
     "cash": {
       "type": "variable"
     },
+    "equity": {
+      "type": "property"
+    },
+    "eventrades": {
+      "type": "property"
+    },
     "fixed": {
       "type": "variable"
+    },
+    "grossloss": {
+      "type": "property"
+    },
+    "grossprofit": {
+      "type": "property"
+    },
+    "initial_capital": {
+      "type": "property"
     },
     "long": {
       "type": "variable"
     },
+    "losstrades": {
+      "type": "property"
+    },
+    "max_drawdown": {
+      "type": "property"
+    },
+    "max_runup": {
+      "type": "property"
+    },
+    "netprofit": {
+      "type": "property"
+    },
+    "openprofit": {
+      "type": "property"
+    },
     "percent_of_equity": {
       "type": "variable"
+    },
+    "position_avg_price": {
+      "type": "property"
+    },
+    "position_size": {
+      "type": "property"
     },
     "short": {
       "type": "variable"
     }
   },
-  "lib.strategy.closedtrades": {},
+  "lib.strategy.closedtrades": {
+    "closedtrades": {
+      "type": "property"
+    }
+  },
   "lib.strategy.commission": {
     "cash_per_contract": {
       "type": "variable"
@@ -649,7 +689,11 @@
       "type": "variable"
     }
   },
-  "lib.strategy.opentrades": {},
+  "lib.strategy.opentrades": {
+    "opentrades": {
+      "type": "property"
+    }
+  },
   "lib.strategy.risk": {},
   "lib.string": {},
   "lib.syminfo": {

@@ -135,7 +135,7 @@ class UnusedSeriesDetectorTransformer(ast.NodeTransformer):
             return annotation.slice
         elif isinstance(annotation, ast.Subscript) and hasattr(annotation.slice, 'value'):
             # Handle ast.Index in older Python versions
-            return annotation.slice.value
+            return getattr(annotation.slice, 'value')
         # Default to Any if we can't determine the inner type
         return ast.Name(id='Any', ctx=ast.Load())
 
@@ -236,6 +236,6 @@ class SeriesOptimizer(ast.NodeTransformer):
                 return annotation.slice
             elif hasattr(annotation.slice, 'value'):
                 # Handle ast.Index in older Python versions
-                return annotation.slice.value
+                return getattr(annotation.slice, 'value')
         # Default to float if we can't determine
         return ast.Name(id='float', ctx=ast.Load())

@@ -12,8 +12,6 @@ class ModuleProperyProtocol(Protocol[T_co]):
     @overload
     def __call__(self, *args: Any, **kwargs: Any) -> T_co: ...
 
-    def __call__(self, *args: Any, **kwargs: Any) -> T_co: ...
-
 
 def module_property(func) -> ModuleProperyProtocol[T] | T:
     """

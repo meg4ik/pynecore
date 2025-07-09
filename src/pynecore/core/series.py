@@ -197,7 +197,8 @@ class SeriesImpl(Generic[T]):
             pos = self._write_pos - 1 - key
             if pos < 0:
                 pos += self._capacity
-            return self._buffer[pos]
+            result = self._buffer[pos]
+            return cast(T | NA[T], result)
 
         elif isinstance(key, slice):
             # Handle slice notation
@@ -217,8 +218,8 @@ class SeriesImpl(Generic[T]):
             if start > stop:
                 start = stop
 
-            return ReadOnlySeriesView(
-                self._buffer,
+            return ReadOnlySeriesView[T](
+                cast(list[T | NA[T] | None], self._buffer),
                 self._capacity,
                 self._write_pos,
                 self._size,
@@ -311,4 +312,5 @@ def inline_series(value: T, idx: int) -> SeriesImpl[T]:
         idx = int(idx)
     global __series_create_series_series__
     __series_create_series_series__.add(value)
-    return __series_create_series_series__[idx]
+    result = __series_create_series_series__[idx]
+    return cast(SeriesImpl[T], result)

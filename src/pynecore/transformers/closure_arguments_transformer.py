@@ -174,13 +174,14 @@ class ClosureArgumentsTransformer(ast.NodeTransformer):
                 method_name = None
 
                 # First argument can be either a string literal or a function reference
-                if (isinstance(node.args[0], ast.Constant) and
-                        isinstance(node.args[0].value, str)):
+                first_arg = node.args[0]
+                if (isinstance(first_arg, ast.Constant) and
+                        isinstance(first_arg.value, str)):
                     # method_call('method_name', this_object, ...) format
-                    method_name = node.args[0].value
-                elif isinstance(node.args[0], ast.Name):
+                    method_name = first_arg.value
+                elif isinstance(first_arg, ast.Name):
                     # method_call(method_function, this_object, ...) format
-                    method_name = node.args[0].id
+                    method_name = first_arg.id
 
                 if method_name:
                     # Check if this method name corresponds to an inner function
@@ -191,10 +192,7 @@ class ClosureArgumentsTransformer(ast.NodeTransformer):
                             # Add closure variables as arguments
                             # For method_call: method_call(method_ref, closure_vars..., this_obj, original_args...)
                             closure_vars = sorted(self.closure_vars[func_key])
-                            new_args = []
-
-                            # Keep the method name
-                            new_args.append(node.args[0])
+                            new_args: List[ast.expr] = [node.args[0]]
 
                             # Add closure variables after method name
                             for var in closure_vars:
