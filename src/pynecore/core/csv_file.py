@@ -96,9 +96,6 @@ class CSVWriter:
 
         try:
             while True:
-                cmd = DO_NOTHING
-                data = {}
-
                 try:
                     cmd, data = self._queue.get(timeout=self._idle_time)
                 except queue.Empty:
