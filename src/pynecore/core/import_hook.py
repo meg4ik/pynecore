@@ -16,10 +16,11 @@ class PyneLoader(importlib.machinery.SourceFileLoader):
         path: Path = Path(path)
 
         # Create marker file for pynecore site-packages to indicate we processed this file
-        if '/site-packages/' in str(path) and '/pynecore/' in str(path):
-            cache_dir = path.parent / '__pycache__'
-            pyc_name = f'{path.stem}.cpython-{sys.version_info.major}{sys.version_info.minor}'
-            marker_path = cache_dir / f'{pyc_name}.pyne'
+        if (os.path.sep + 'site-packages' + os.path.sep in str(path).lower()
+                and os.path.sep + 'pynecore' + os.path.sep in str(path).lower()):
+            pyc_path = Path(importlib.util.cache_from_source(str(path)))
+            cache_dir = pyc_path.parent
+            marker_path = pyc_path.parent / f'{pyc_path.name}.pyne'
             try:
                 cache_dir.mkdir(exist_ok=True)
                 # Write the .py file's mtime to the marker
@@ -139,11 +140,10 @@ class PyneImportHook:
             for py_path in candidates:
                 if py_path.exists():
                     # Check if pynecore site-packages bytecode needs recompilation
-                    if '/site-packages/' in str(py_path) and '/pynecore/' in str(py_path):
-                        cache_dir = py_path.parent / '__pycache__'
-                        pyc_name = f'{py_path.stem}.cpython-{sys.version_info.major}{sys.version_info.minor}'
-                        pyc_path = cache_dir / f'{pyc_name}.pyc'
-                        marker_path = cache_dir / f'{pyc_name}.pyne'
+                    if (os.path.sep + 'site-packages' + os.path.sep in str(py_path).lower() and
+                            os.path.sep + 'pynecore' + os.path.sep in str(py_path).lower()):
+                        pyc_path = Path(importlib.util.cache_from_source(str(py_path)))
+                        marker_path = pyc_path.parent / f'{pyc_path.name}.pyne'
 
                         need_recompile = False
 
