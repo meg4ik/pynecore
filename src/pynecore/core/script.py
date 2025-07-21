@@ -749,6 +749,9 @@ class _Input:
     symbol = string
     timeframe = string
     textarea = string
+    
+    # time() returns UNIX timestamp in milliseconds (int)
+    time = _int
 
 
 # noinspection PyShadowingBuiltins
