@@ -7,12 +7,14 @@ from ..lib import syminfo
 # Standard formats for non-ISO dates
 STANDARD_FORMATS = [
     "%d %b %Y %H:%M:%S %z",  # "20 Feb 2020 15:30:00 +0200"
+    "%d %b %Y %H:%M %z",      # "01 Jan 2018 00:00 +0000"
 ]
 
 # Pine Script specific formats (without timezone)
 PINE_FORMATS = [
     "%b %d %Y %H:%M:%S",  # "Feb 01 2020 22:10:05"
     "%d %b %Y %H:%M:%S",  # "04 Dec 1995 00:12:00"
+    "%d %b %Y %H:%M",     # "01 Jan 2018 00:00"
     "%b %d %Y",  # "Feb 01 2020"
     "%d %b %Y",  # "04 Dec 1995"
     "%Y-%m-%d"  # "2020-02-20"
@@ -80,7 +82,10 @@ def parse_timezone(timezone: str) -> ZoneInfo:
         offset += int(minutes) / 60
 
     # UTC/GMT+X maps to Etc/GMT-X and vice versa
-    zone = f"Etc/GMT{'-' if sign == '+' else '+'}{abs(offset)}"
+    # Special case: offset 0 should use UTC directly
+    if offset == 0:
+        return ZoneInfo("UTC")
+    zone = f"Etc/GMT{'-' if sign == '+' else '+'}{int(abs(offset))}"
     return ZoneInfo(zone)
 
 
