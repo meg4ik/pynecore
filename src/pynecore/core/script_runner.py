@@ -103,6 +103,12 @@ def _set_lib_syminfo_properties(syminfo: SymInfo, lib: ModuleType):
     lib.syminfo._session_starts = syminfo.session_starts
     lib.syminfo._session_ends = syminfo.session_ends
 
+    if syminfo.type == 'crypto':
+        decimals = 6 if syminfo.basecurrency == 'BTC' else 4  # TODO: is it correct?
+        lib.syminfo._size_round_factor = 10 ** decimals
+    else:
+        lib.syminfo._size_round_factor = 1
+
 
 def _reset_lib_vars(lib: ModuleType):
     """

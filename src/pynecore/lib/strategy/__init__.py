@@ -1,5 +1,6 @@
 from typing import cast, TYPE_CHECKING
 
+import math
 from datetime import datetime, UTC
 from collections import deque
 from copy import copy
@@ -377,6 +378,9 @@ class Position:
 
                     # Modify sizes
                     self.size += size
+                    # Handle too small sizes because of floating point inaccuracy and rounding
+                    if math.isclose(self.size, 0.0, abs_tol=1 / syminfo._size_round_factor):
+                        self.size = 0.0
                     self.sign = 0.0 if self.size == 0.0 else 1.0 if self.size > 0.0 else -1.0
                     trade.size += size
                     order.size -= size
@@ -688,11 +692,7 @@ def _size_round(qty: float) -> float:
     :param qty: The quantity to round
     :return: The rounded quantity
     """
-    if syminfo.type == 'crypto':
-        decimals = 6 if syminfo.basecurrency == 'BTC' else 4  # TODO: is it correct?
-        rfactor = 10 ** decimals
-    else:
-        rfactor = 1
+    rfactor = syminfo._size_round_factor  # noqa
     qrf = int(abs(qty) * rfactor * 10.0) * 0.1  # We need to floor to one decimal place
     sign = 1 if qty > 0 else -1
     return sign * int(qrf) / rfactor
@@ -853,34 +853,34 @@ def entry(id: str, direction: direction.Direction, qty: int | float | NA[float] 
             default_qty_value = script.default_qty_value
             # TradingView calculates position size so that the total investment
             # (position value + commission) equals the specified percentage of equity
-            # 
+            #
             # For percent commission: total_cost = qty * price * (1 + commission_rate)
             # For cash per contract: total_cost = qty * price + qty * commission_value
-            # 
+            #
             # We want: total_cost = equity * percent
             # So: qty = (equity * percent) / (price * (1 + commission_factor))
-            
+
             equity_percent = default_qty_value * 0.01
             target_investment = script.position.equity * equity_percent
-            
+
             # Calculate the commission factor based on commission type
             if script.commission_type == _commission.percent:
                 # For percentage commission: qty * price * (1 + commission%)
                 commission_multiplier = 1.0 + script.commission_value * 0.01
                 qty = target_investment / (lib.close * syminfo.pointvalue * commission_multiplier)
-                
+
             elif script.commission_type == _commission.cash_per_contract:
                 # For cash per contract: qty * price + qty * commission_value
                 # qty * (price + commission_value) = target_investment
                 price_plus_commission = lib.close * syminfo.pointvalue + script.commission_value
                 qty = target_investment / price_plus_commission
-                
+
             elif script.commission_type == _commission.cash_per_order:
                 # For cash per order: qty * price + commission_value = target_investment
                 # qty = (target_investment - commission_value) / price
                 qty = (target_investment - script.commission_value) / (lib.close * syminfo.pointvalue)
                 qty = max(0.0, qty)  # Ensure non-negative
-                
+
             else:
                 # No commission
                 qty = target_investment / (lib.close * syminfo.pointvalue)

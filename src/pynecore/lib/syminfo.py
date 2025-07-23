@@ -41,3 +41,5 @@ target_price_average: float | NA[float] = NA(float)
 target_price_high: float | NA[float] = NA(float)
 target_price_low: float | NA[float] = NA(float)
 target_price_date: int | NA[int] = NA(int)  # UNIX timestamp
+
+_size_round_factor: float
