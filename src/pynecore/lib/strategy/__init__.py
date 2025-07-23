@@ -12,7 +12,8 @@ from ...types.strategy import QtyType
 from ...types.base import IntEnum
 from ...types.na import NA
 
-from . import direction
+from . import direction as direction
+from . import commission as _commission
 from . import oca as _oca
 
 from . import closedtrades, opentrades
@@ -352,12 +353,12 @@ class Position:
                     self.open_commission -= closed_trade.commission
 
                     # We realize later if it is cash per order
-                    if commission_type == 'cash_per_order':
+                    if commission_type == _commission.cash_per_contract:
                         closed_trade_size += abs(size)
                     else:
                         commission = abs(size) * commission_value
 
-                        if commission_type == 'percent':
+                        if commission_type == _commission.percent:
                             commission *= 0.01
                         closed_trade.commission += commission
                         # Realize commission
@@ -422,7 +423,7 @@ class Position:
                 if order.exit_id is not None:
                     self.orders.pop(order.exit_id, None)
 
-                if commission_type == 'cash_per_order':
+                if commission_type == _commission.cash_per_order:
                     # Realize commission
                     self.netprofit -= commission_value
                     for trade in new_closed_trades:
@@ -435,11 +436,11 @@ class Position:
         elif order.order_type != _order_type_close:
             # Calculate commission
             if commission_value:
-                if commission_type == 'cash_per_order':
+                if commission_type == _commission.cash_per_order:
                     commission = commission_value
-                elif commission_type == 'percent':
+                elif commission_type == _commission.percent:
                     commission = abs(order.size) * commission_value * 0.01
-                elif commission_type == 'cash_per_contract':
+                elif commission_type == _commission.cash_per_contract:
                     commission = abs(order.size) * commission_value
                 else:  # Should not be here!
                     assert False, 'Wrong commission type: ' + str(commission_type)
@@ -688,7 +689,7 @@ def _size_round(qty: float) -> float:
     :return: The rounded quantity
     """
     if syminfo.type == 'crypto':
-        decimals = 6 if syminfo.ticker == 'BTCUSD' else 4  # TODO: is it correct?
+        decimals = 6 if syminfo.basecurrency == 'BTC' else 4  # TODO: is it correct?
         rfactor = 10 ** decimals
     else:
         rfactor = 1
@@ -850,7 +851,39 @@ def entry(id: str, direction: direction.Direction, qty: int | float | NA[float] 
 
         elif default_qty_type == percent_of_equity:
             default_qty_value = script.default_qty_value
-            qty = script.position.equity * (default_qty_value * 0.01) / (lib.close * syminfo.pointvalue)
+            # TradingView calculates position size so that the total investment
+            # (position value + commission) equals the specified percentage of equity
+            # 
+            # For percent commission: total_cost = qty * price * (1 + commission_rate)
+            # For cash per contract: total_cost = qty * price + qty * commission_value
+            # 
+            # We want: total_cost = equity * percent
+            # So: qty = (equity * percent) / (price * (1 + commission_factor))
+            
+            equity_percent = default_qty_value * 0.01
+            target_investment = script.position.equity * equity_percent
+            
+            # Calculate the commission factor based on commission type
+            if script.commission_type == _commission.percent:
+                # For percentage commission: qty * price * (1 + commission%)
+                commission_multiplier = 1.0 + script.commission_value * 0.01
+                qty = target_investment / (lib.close * syminfo.pointvalue * commission_multiplier)
+                
+            elif script.commission_type == _commission.cash_per_contract:
+                # For cash per contract: qty * price + qty * commission_value
+                # qty * (price + commission_value) = target_investment
+                price_plus_commission = lib.close * syminfo.pointvalue + script.commission_value
+                qty = target_investment / price_plus_commission
+                
+            elif script.commission_type == _commission.cash_per_order:
+                # For cash per order: qty * price + commission_value = target_investment
+                # qty = (target_investment - commission_value) / price
+                qty = (target_investment - script.commission_value) / (lib.close * syminfo.pointvalue)
+                qty = max(0.0, qty)  # Ensure non-negative
+                
+            else:
+                # No commission
+                qty = target_investment / (lib.close * syminfo.pointvalue)
 
         elif default_qty_type == cash:
             default_qty_value = script.default_qty_value
