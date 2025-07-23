@@ -1,5 +1,5 @@
 from typing import Callable
-from abc import abstractmethod
+from abc import abstractmethod, ABCMeta
 from pathlib import Path
 from datetime import datetime
 import tomllib
@@ -9,7 +9,7 @@ from pynecore.core.syminfo import SymInfo, SymInfoInterval, SymInfoSession
 from pynecore.core.ohlcv_file import OHLCVWriter, OHLCVReader
 
 
-class Provider:
+class Provider(metaclass=ABCMeta):
     """
     Base class for all providers
     """
