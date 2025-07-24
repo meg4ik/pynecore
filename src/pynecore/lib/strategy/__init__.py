@@ -217,6 +217,28 @@ class Position:
 
     cum_profit: float | NA[float] = 0.0
 
+    # Risk management settings
+    risk_allowed_direction: direction.Direction | None = None
+    risk_max_cons_loss_days: int | None = None
+    risk_max_cons_loss_days_alert: str | None = None
+    risk_max_drawdown_value: float | None = None
+    risk_max_drawdown_type: QtyType | None = None
+    risk_max_drawdown_alert: str | None = None
+    risk_max_intraday_filled_orders: int | None = None
+    risk_max_intraday_filled_orders_alert: str | None = None
+    risk_max_intraday_loss_value: float | None = None
+    risk_max_intraday_loss_type: QtyType | None = None
+    risk_max_intraday_loss_alert: str | None = None
+    risk_max_position_size: float | None = None
+
+    # Risk management state tracking
+    risk_cons_loss_days: int = 0
+    risk_last_day_index: int = -1
+    risk_last_day_equity: float = 0.0
+    risk_intraday_filled_orders: int = 0
+    risk_intraday_start_equity: float = 0.0
+    risk_halt_trading: bool = False
+
     def __init__(self):
         self.orders = {}
 
@@ -380,6 +402,7 @@ class Position:
                     self.size += size
                     # Handle too small sizes because of floating point inaccuracy and rounding
                     if math.isclose(self.size, 0.0, abs_tol=1 / syminfo._size_round_factor):
+                        size -= self.size
                         self.size = 0.0
                     self.sign = 0.0 if self.size == 0.0 else 1.0 if self.size > 0.0 else -1.0
                     trade.size += size
@@ -479,7 +502,12 @@ class Position:
 
             # Average entry price
             self.entry_summ += price * abs(order.size)
-            self.avg_price = self.entry_summ / abs(self.size)
+            try:
+                self.avg_price = self.entry_summ / abs(self.size)
+            except ZeroDivisionError:
+                self.avg_price = 0.0
+            # Unrealized P&L
+            self.openprofit = self.size * (self.c - self.avg_price)
             # Commission summ
             self.open_commission += commission
 
@@ -506,6 +534,8 @@ class Position:
         # If position direction is about to change, we split it into two separate orders
         # This is necessary to create a new average entry price
         new_size = self.size + order.size
+        if math.isclose(new_size, 0.0, abs_tol=1 / syminfo._size_round_factor):  # Check for rounding errors
+            new_size = 0.0
         new_sign = 0.0 if new_size == 0.0 else 1.0 if new_size > 0.0 else -1.0
         if self.size != 0.0 and new_sign != self.sign:
             # Create a copy for closing existing position
@@ -685,6 +715,7 @@ class Position:
 # Functions
 #
 
+# noinspection PyProtectedMember
 def _size_round(qty: float) -> float:
     """
     Round size to the nearest possible value
@@ -842,6 +873,11 @@ def entry(id: str, direction: direction.Direction, qty: int | float | NA[float] 
 
     script = lib._script
     assert script is not None and script.position is not None
+    position = script.position
+
+    # Risk management: Check if trading is halted
+    if position.risk_halt_trading:
+        return
 
     # Get default qty by script parameters if no qty is specified
     if isinstance(qty, NA):
@@ -897,27 +933,56 @@ def entry(id: str, direction: direction.Direction, qty: int | float | NA[float] 
         return
 
     # We need a signed size instead of qty, the sign is the direction
-    direction: float = (-1.0 if direction == short else 1.0)
-    size = qty * direction
+    direction_sign: float = (-1.0 if direction == short else 1.0)
+    size = qty * direction_sign
     sign = 0.0 if size == 0.0 else 1.0 if size > 0.0 else -1.0
 
     # Change direction
-    if script.position.size:
-        if script.position.sign != sign:
-            size -= script.position.size
+    is_direction_change = False
+    if position.size:
+        if position.sign != sign:
+            is_direction_change = True
         else:
             # Handle pyramiding
             if script.pyramiding <= len(script.position.open_trades):
                 return
+
+    # Risk management: Check allowed direction (only for new positions, not direction changes)
+    if position.risk_allowed_direction is not None:
+        if (sign > 0 and position.risk_allowed_direction != long) or \
+                (sign < 0 and position.risk_allowed_direction != short):
+            if not is_direction_change:
+                return
+            else:
+                is_direction_change = False
+
+    # We need to adjust the size if we are changing direction
+    if is_direction_change:
+        size -= position.size
+
+    # Risk management: Check max position size
+    if position.risk_max_position_size is not None:
+        new_position_size = abs(position.size + size)
+        if new_position_size > position.risk_max_position_size:
+            # Adjust size to not exceed max position size
+            max_allowed_size = position.risk_max_position_size - abs(position.size)
+            if max_allowed_size <= 0:
+                return
+            size = max_allowed_size * sign
+
+    # Risk management: Check max intraday filled orders
+    if position.risk_max_intraday_filled_orders is not None:
+        if position.risk_intraday_filled_orders >= position.risk_max_intraday_filled_orders:
+            return
 
     size = _size_round(size)
     if size == 0.0:
         return
 
     if limit is not None:
-        limit = _price_round(limit, direction)
+        limit = _price_round(limit, direction_sign)
     if stop is not None:
-        stop = _price_round(stop, -direction)
+        stop = _price_round(stop, -direction_sign)
 
     order = Order(id, size, order_type=_order_type_entry, limit=limit, stop=stop, oca_name=oca_name,
                   oca_type=oca_type, comment=comment, alert_message=alert_message)

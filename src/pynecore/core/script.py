@@ -56,7 +56,7 @@ class Script:
     Script parameters dataclass
     """
     # These fields will be skipped when saving to toml
-    _SKIP_FIELDS = {'script_type', 'inputs', 'title', 'shorttitle'}
+    _SKIP_FIELDS = {'script_type', 'inputs', 'title', 'shorttitle', 'position'}
 
     script_type: _script_type.ScriptType | None = None
     inputs: dict[str, InputData] = field(default_factory=dict)
@@ -749,7 +749,7 @@ class _Input:
     symbol = string
     timeframe = string
     textarea = string
-    
+
     # time() returns UNIX timestamp in milliseconds (int)
     time = _int
 
