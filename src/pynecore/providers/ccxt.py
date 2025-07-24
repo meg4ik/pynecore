@@ -1,11 +1,11 @@
 from typing import Callable
 import sys
 
-# Python 3.12+ esetén importáljuk az override dekorátort
+# Python 3.12+
 if sys.version_info >= (3, 12):
     from typing import override
 else:
-    # Python 3.11 és alatta egy üres dekorátor
+    # Python 3.11
     def override(func):
         return func
 import re
@@ -54,12 +54,12 @@ class CCXTProvider(Provider):
         '# [ccxt.binance]': '',
         '# apiKey = "your_binance_api_key"': '',
         '# secret = "your_binance_secret"': '',
-        '# ': '',
+        '# ': '',  # noqa
         '# [ccxt.kucoin]': '',
         '# apiKey = "your_kucoin_api_key"': '',
         '# secret = "your_kucoin_secret"': '',
         '# password = "your_kucoin_password"': '',
-        '# ': '',
+        '# ': '',  # noqa
         '# [ccxt.okex]': '',
         '# apiKey = "your_okex_api_key"': '',
         '# secret = "your_okex_secret"': '',
@@ -260,7 +260,7 @@ class CCXTProvider(Provider):
         return SymInfo(
             prefix=self._client.id.upper(),
             description=f"{market_details['base']} / {market_details['quote']} "
-            f"{add_space_before_uppercase(market_details['info'].get('contractType', 'Spot'))}",
+                        f"{add_space_before_uppercase(market_details['info'].get('contractType', 'Spot'))}",
             ticker=market_details['info']['symbol'],
             currency=market_details['quote'],
             basecurrency=market_details['base'],
