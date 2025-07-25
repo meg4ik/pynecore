@@ -615,6 +615,25 @@ class OHLCVReader:
         """
         self._file = open(self.path, 'rb')
         if os.path.getsize(self.path) > 0:
+            # Detect if this is a text file masquerading as binary OHLCV
+            self._file.seek(0)
+            first_chunk = self._file.read(32)
+            self._file.seek(0)  # Reset position
+
+            try:
+                # If 256 bytes decode as ASCII, it's definitely not binary OHLCV
+                first_chunk.decode('ascii')
+
+                # If we get here, it's text - show error with CLI fix
+                raise ValueError(
+                    f"Text file detected with .ohlcv extension!\n"
+                    f"To convert CSV to binary OHLCV format:\n"
+                    f"  pyne data convert-from {self.path} --symbol YOUR_SYMBOL --provider custom"
+                )
+            except UnicodeDecodeError:
+                # Can't decode as ASCII → it's binary, proceed normally
+                pass
+
             self._mmap = mmap.mmap(self._file.fileno(), 0, access=mmap.ACCESS_READ)
             self._size = os.path.getsize(self.path) // RECORD_SIZE
 
