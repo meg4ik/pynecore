@@ -5,7 +5,7 @@ title: "Running Scripts"
 description: "Running PyneCore scripts from the command line"
 icon: "play_circle"
 date: "2025-03-31"
-lastmod: "2025-03-31"
+lastmod: "2025-07-24"
 draft: false
 toc: true
 categories: ["Usage", "CLI", "Scripting"]
@@ -73,12 +73,12 @@ pyne run my_strategy.py eurusd_data.ohlcv --from "2023-01-01" --to "2023-12-31"
 
 - `--plot`, `-pp`: Path to save the plot data (CSV format). If not specified, it will be saved as `<script_name>.csv` in the `workdir/output/` directory.
 - `--strat`, `-sp`: Path to save the strategy statistics (CSV format). If not specified, it will be saved as `<script_name>_strat.csv` in the `workdir/output/` directory.
-- `--equity`, `-ep`: Path to save the equity curve (CSV format). If not specified, it will be saved as `<script_name>_equity.csv` in the `workdir/output/` directory.
+- `--trade`, `-tp`: Path to save the trade data (CSV format). If not specified, it will be saved as `<script_name>_trade.csv` in the `workdir/output/` directory.
 
 Example:
 ```bash
 # Specify custom output paths
-pyne run my_strategy.py eurusd_data.ohlcv --plot custom_plot.csv --strat custom_stats.csv
+pyne run my_strategy.py eurusd_data.ohlcv --plot custom_plot.csv --strat custom_stats.csv --trade custom_trades.csv
 ```
 
 ## Symbol Information
@@ -120,18 +120,34 @@ After the script execution completes, several output files are created:
 
 Contains the values plotted by the script for each bar. This includes all values passed to `plot()` functions in your script.
 
+**Default filename**: `<script_name>.csv`
+
 ### Strategy Statistics (CSV)
 
-If your script is a strategy, this file contains detailed statistics about the trading performance, including:
-- Total profit/loss
-- Win rate
-- Maximum drawdown
-- Sharpe ratio
-- Trade details
+If your script is a strategy, this file contains comprehensive TradingView-compatible statistics about the trading performance, including:
+- **Overview metrics**: Net profit, gross profit/loss, max equity runup/drawdown, buy & hold return
+- **Performance ratios**: Sharpe ratio, Sortino ratio, profit factor
+- **Trade statistics**: Total/winning/losing trades, percent profitable, average trade metrics
+- **Position analysis**: Largest winning/losing trades, average bars in trades
+- **Long/Short breakdown**: Separate statistics for long and short positions
+- **Risk metrics**: Max contracts held, commission paid, margin calls
 
-### Equity Curve (CSV)
+**Default filename**: `<script_name>_strat.csv`
 
-If your script is a strategy, this file contains the equity curve data showing how the account balance changed over time.
+### Trade Data (CSV)
+
+If your script is a strategy, this file contains detailed trade-by-trade data with entry and exit records:
+- **Trade information**: Trade number, bar index, entry/exit type, signal ID
+- **Timing data**: Date/time of entry and exit
+- **Price data**: Entry/exit prices in the symbol's currency
+- **Position data**: Number of contracts traded
+- **Performance metrics**: Profit/loss in currency and percentage
+- **Cumulative tracking**: Running totals of profit and profit percentage
+- **Risk analysis**: Maximum run-up and drawdown for each trade
+
+**Default filename**: `<script_name>_trade.csv`
+
+**Note**: This file exports individual trade records (entry/exit pairs), not the equity curve. The equity curve is tracked internally for statistics calculation.
 
 ## Examples
 
@@ -156,7 +172,7 @@ pyne run my_strategy.py eurusd_data.ohlcv --from "2023-03-01" --to "2023-03-31"
 pyne run my_strategy.py eurusd_data.ohlcv \
   --plot ./analysis/my_plot.csv \
   --strat ./analysis/my_stats.csv \
-  --equity ./analysis/my_equity.csv
+  --trade ./analysis/my_trades.csv
 ```
 
 ## Troubleshooting

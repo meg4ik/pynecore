@@ -71,9 +71,9 @@ def run(
                                          help="Path to save the strategy statistics",
                                          rich_help_panel="Out Path Options"
                                          ),
-        equity_path: Path | None = Option(None, "--equity", "-ep",
-                                          help="Path to save the equity curve",
-                                          rich_help_panel="Out Path Options"),
+        trade_path: Path | None = Option(None, "--trade", "-tp",
+                                         help="Path to save the trade data",
+                                         rich_help_panel="Out Path Options"),
 ):
     """
     Run a script
@@ -83,7 +83,7 @@ def run(
 
     If [bold]script[/] path is a name without full path, it will be searched in the [italic]"workdir/scripts"[/] directory.
     Similarly, if [bold]data[/] path is a name without full path, it will be searched in the [italic]"workdir/data"[/] directory.
-    The [bold]plot_path[/], [bold]strat_path[/], and [bold]equity_path[/] work the same way - if they are names without full paths,
+    The [bold]plot_path[/], [bold]strat_path[/], and [bold]trade_path[/] work the same way - if they are names without full paths,
     they will be saved in the [italic]"workdir/output"[/] directory.
     """  # noqa
     # Ensure .py extension
@@ -132,11 +132,11 @@ def run(
     if not strat_path:
         strat_path = app_state.output_dir / f"{script.stem}_strat.csv"
 
-    # Ensure .csv extension for equity path
-    if equity_path and equity_path.suffix != ".csv":
-        equity_path = equity_path.with_suffix(".csv")
-    if not equity_path:
-        equity_path = app_state.output_dir / f"{script.stem}_equity.csv"
+    # Ensure .csv extension for trade path
+    if trade_path and trade_path.suffix != ".csv":
+        trade_path = trade_path.with_suffix(".csv")
+    if not trade_path:
+        trade_path = app_state.output_dir / f"{script.stem}_trade.csv"
 
     # Get symbol info for the data
     try:
@@ -177,7 +177,7 @@ def run(
             try:
                 # Create script runner (this is where the import happens)
                 runner = ScriptRunner(script, ohlcv_iter, syminfo, last_bar_index=size - 1,
-                                      plot_path=plot_path, strat_path=strat_path, equity_path=equity_path)
+                                      plot_path=plot_path, strat_path=strat_path, trade_path=trade_path)
             finally:
                 # Remove lib directory from Python path
                 if lib_path_added:

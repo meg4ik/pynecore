@@ -7,6 +7,7 @@ from datetime import datetime, UTC
 from pynecore.types.ohlcv import OHLCV
 from pynecore.core.syminfo import SymInfo
 from pynecore.core.csv_file import CSVWriter
+from pynecore.core.strategy_stats import calculate_strategy_statistics, write_strategy_statistics_csv
 
 from pynecore.types import script_type
 
@@ -145,11 +146,12 @@ class ScriptRunner:
     """
 
     __slots__ = ('script_module', 'script', 'ohlcv_iter', 'syminfo', 'update_syminfo_every_run',
-                 'bar_index', 'tz', 'plot_writer', 'strat_writer', 'equity_writer', 'last_bar_index')
+                 'bar_index', 'tz', 'plot_writer', 'strat_writer', 'trades_writer', 'last_bar_index',
+                 'equity_curve', 'first_price', 'last_price')
 
     def __init__(self, script_path: Path, ohlcv_iter: Iterable[OHLCV], syminfo: SymInfo, *,
                  plot_path: Path | None = None, strat_path: Path | None = None,
-                 equity_path: Path | None = None,
+                 trade_path: Path | None = None,
                  update_syminfo_every_run: bool = False, last_bar_index=0):
         """
         Initialize the script runner
@@ -159,7 +161,7 @@ class ScriptRunner:
         :param syminfo: Symbol information
         :param plot_path: Path to save the plot data
         :param strat_path: Path to save the strategy results
-        :param equity_path: Path to save the equity data of the strategy
+        :param trade_path: Path to save the trade data of the strategy
         :param update_syminfo_every_run: If it is needed to update the syminfo lib in every run,
                                          needed for parallel script executions
         :param last_bar_index: Last bar index, the index of the last bar of the historical data
@@ -186,16 +188,26 @@ class ScriptRunner:
 
         self.tz = _parse_timezone(syminfo.timezone)
 
+        # Initialize tracking variables for statistics
+        self.equity_curve: list[float] = []
+        self.first_price: float | None = None
+        self.last_price: float | None = None
+
         self.plot_writer = CSVWriter(
             plot_path, float_fmt=f".8g"
         ) if plot_path else None
-        self.strat_writer = CSVWriter(strat_path) if strat_path else None
-        self.equity_writer = CSVWriter(equity_path, headers=(
+        self.strat_writer = CSVWriter(strat_path, headers=(
+            "Metric",
+            f"All {syminfo.currency}", "All %",
+            f"Long {syminfo.currency}", "Long %",
+            f"Short {syminfo.currency}", "Short %",
+        )) if strat_path else None
+        self.trades_writer = CSVWriter(trade_path, headers=(
             "Trade #", "Bar Index", "Type", "Signal", "Date/Time", f"Price {syminfo.currency}",
             "Contracts", f"Profit {syminfo.currency}", "Profit %", f"Cumulative profit {syminfo.currency}",
             "Cumulative profit %", f"Run-up {syminfo.currency}", "Run-up %", f"Drawdown {syminfo.currency}",
             "Drawdown %",
-        )) if equity_path else None
+        )) if trade_path else None
 
     # noinspection PyProtectedMember
     def run_iter(self, on_progress: Callable[[datetime], None] | None = None) \
@@ -233,9 +245,9 @@ class ScriptRunner:
 
         # If the script is a strategy, we open strategy output files too
         if is_strat:
-            # Open equity writer if we have one
-            if self.equity_writer:
-                self.equity_writer.open()
+            # Open trade writer if we have one
+            if self.trades_writer:
+                self.trades_writer.open()
 
         # Clear plot data
         lib._plot_data.clear()
@@ -258,6 +270,13 @@ class ScriptRunner:
 
                 # Update lib properties
                 _set_lib_properties(candle, self.bar_index, self.tz, lib)
+
+                # Store first price for buy & hold calculation
+                if self.first_price is None:
+                    self.first_price = lib.close  # type: ignore
+
+                # Update last price
+                self.last_price = lib.close  # type: ignore
 
                 # Reset function increments
                 function_isolation.reset_step()
@@ -295,11 +314,11 @@ class ScriptRunner:
                 elif position:
                     yield candle, lib._plot_data, position.new_closed_trades
 
-                # Save equity data if we have a writer
-                if is_strat and self.equity_writer and position:
+                # Save trade data if we have a writer
+                if is_strat and self.trades_writer and position:
                     for trade in position.new_closed_trades:
                         trade_num += 1  # Start from 1
-                        self.equity_writer.write(
+                        self.trades_writer.write(
                             trade_num,
                             trade.entry_bar_index,
                             "Entry long" if trade.size > 0 else "Entry short",
@@ -316,7 +335,7 @@ class ScriptRunner:
                             trade.max_drawdown,
                             f"{trade.max_drawdown_percent:.2f}",
                         )
-                        self.equity_writer.write(
+                        self.trades_writer.write(
                             trade_num,
                             trade.exit_bar_index,
                             "Exit long" if trade.size > 0 else "Exit short",
@@ -337,6 +356,11 @@ class ScriptRunner:
                 # Clear plot data
                 lib._plot_data.clear()
 
+                # Track equity curve for strategies
+                if is_strat and position:
+                    current_equity = float(position.equity) if position.equity else self.script.initial_capital
+                    self.equity_curve.append(current_equity)
+
                 # Call the progress callback
                 if on_progress and lib._datetime is not None:
                     on_progress(lib._datetime.replace(tzinfo=None))
@@ -352,35 +376,58 @@ class ScriptRunner:
         except GeneratorExit:
             pass
         finally:  # Python reference counter will close this even if the iterator is not exhausted
-            # Export remaining open trades before closing
-            if is_strat and self.equity_writer and position and position.open_trades:
-                for trade in position.open_trades:
-                    trade_num += 1  # Continue numbering from closed trades
-                    # Export only the entry part for open trades
-                    self.equity_writer.write(
-                        trade_num,
-                        trade.entry_bar_index,
-                        "Entry long" if trade.size > 0 else "Entry short",
-                        trade.entry_id,
-                        string.format_time(trade.entry_time),  # type: ignore
-                        trade.entry_price,
-                        abs(trade.size),
-                        0.0,  # No profit yet for open trades
-                        "0.00",  # No profit percent yet
-                        0.0,  # No cumulative profit change
-                        "0.00",  # No cumulative profit percent change
-                        0.0,  # No max runup yet
-                        "0.00",  # No max runup percent yet
-                        0.0,  # No max drawdown yet
-                        "0.00",  # No max drawdown percent yet
-                    )
+            if is_strat and position:
+                # Export remaining open trades before closing
+                if self.trades_writer and position.open_trades:
+                    for trade in position.open_trades:
+                        trade_num += 1  # Continue numbering from closed trades
+                        # Export only the entry part for open trades
+                        self.trades_writer.write(
+                            trade_num,
+                            trade.entry_bar_index,
+                            "Entry long" if trade.size > 0 else "Entry short",
+                            trade.entry_id,
+                            string.format_time(trade.entry_time),  # type: ignore
+                            trade.entry_price,
+                            abs(trade.size),
+                            0.0,  # No profit yet for open trades
+                            "0.00",  # No profit percent yet
+                            0.0,  # No cumulative profit change
+                            "0.00",  # No cumulative profit percent change
+                            0.0,  # No max runup yet
+                            "0.00",  # No max runup percent yet
+                            0.0,  # No max drawdown yet
+                            "0.00",  # No max drawdown percent yet
+                        )
+
+                # Write strategy statistics
+                if self.strat_writer and position:
+                    try:
+                        # Open strat writer and write statistics
+                        self.strat_writer.open()
+
+                        # Calculate comprehensive statistics
+                        stats = calculate_strategy_statistics(
+                            position,
+                            self.script.initial_capital,
+                            self.equity_curve if self.equity_curve else None,
+                            self.first_price,
+                            self.last_price
+                        )
+
+                        write_strategy_statistics_csv(stats, self.strat_writer)
+                        self.strat_writer.close()
+
+                    finally:
+                        # Close strat writer
+                        self.strat_writer.close()
 
             # Close the plot writer
             if self.plot_writer:
                 self.plot_writer.close()
-            # Close the equity writer
-            if self.equity_writer:
-                self.equity_writer.close()
+            # Close the trade writer
+            if self.trades_writer:
+                self.trades_writer.close()
 
             # Reset library variables
             _reset_lib_vars(lib)
