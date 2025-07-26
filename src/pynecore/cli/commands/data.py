@@ -212,7 +212,7 @@ def convert_to(
                                    help="Save timestamp as datetime instead of UNIX timestamp"),
 ):
     """
-    Convert downloaded data from pyne fmt to another fmt
+    Convert downloaded data from pyne's OHLCV format to another format
     """
     # Import provider module from
     provider_module = __import__(f"pynecore.providers.{provider.value}", fromlist=[''])
@@ -251,7 +251,7 @@ def convert_from(
                          help="Timezone"),
 ):
     """
-    Convert data from other sources to pyne fmt
+    Convert data from other sources to pyne's OHLCV format
     """
     with Progress(SpinnerColumn(finished_text="[green]✓"), TextColumn("{task.description}")) as progress:
         ohlcv_path = Provider.get_ohlcv_path(symbol, timeframe.value, app_state.data_dir, provider)

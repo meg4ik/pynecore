@@ -50,7 +50,7 @@ def plot(series: Any, title: str | None = None, *_, **__):
 
     if lib.bar_index == 0:  # Only check if it is the first bar for performance reasons
         # Check if it is called from the main function
-        if sys._getframe(2).f_code.co_name != 'main':  # noqa
+        if sys._getframe(2).f_code.co_name not in ('main', 'plotchar'):  # noqa
             raise RuntimeError("The plot function can only be called from the main function!")
 
     # Ensure unique title

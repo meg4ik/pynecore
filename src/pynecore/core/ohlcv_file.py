@@ -449,6 +449,7 @@ class OHLCVWriter:
         }
 
         # Load JSON file
+        data = None
         with open(path, 'r') as f:
             data = json.load(f)
 
@@ -628,7 +629,8 @@ class OHLCVReader:
                 raise ValueError(
                     f"Text file detected with .ohlcv extension!\n"
                     f"To convert CSV to binary OHLCV format:\n"
-                    f"  pyne data convert-from {self.path} --symbol YOUR_SYMBOL --provider custom"
+                    f"  pyne data convert-from {self.path.replace('.ohlcv', '.csv')} "
+                    f"--symbol YOUR_SYMBOL --provider custom"
                 )
             except UnicodeDecodeError:
                 # Can't decode as ASCII → it's binary, proceed normally
