@@ -34,10 +34,13 @@ def setup(
     """
     Pyne Command Line Interface
     """
-    if ctx.resilient_parsing or ctx.invoked_subcommand is None:
+    if ctx.resilient_parsing:
         return
-    if any(arg in ('-h', '--help') for arg in sys.argv[1:]):
-        return
+    
+    # If no subcommand is provided, show complete help like --help
+    if ctx.invoked_subcommand is None:
+        typer.echo(ctx.get_help())
+        raise typer.Exit(0)
 
     typer.echo("")
 
