@@ -629,7 +629,7 @@ class OHLCVReader:
                 raise ValueError(
                     f"Text file detected with .ohlcv extension!\n"
                     f"To convert CSV to binary OHLCV format:\n"
-                    f"  pyne data convert-from {self.path.replace('.ohlcv', '.csv')} "
+                    f"  pyne data convert-from {Path(self.path).with_suffix('.csv')} "
                     f"--symbol YOUR_SYMBOL --provider custom"
                 )
             except UnicodeDecodeError:
