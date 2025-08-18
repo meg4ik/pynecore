@@ -58,7 +58,6 @@ long = direction.long
 short = direction.short
 
 # Possible order types
-_order_type_normal = _OrderType()
 _order_type_entry = _OrderType()
 _order_type_close = _OrderType()
 
@@ -85,6 +84,7 @@ class Order:
         "comment", "alert_message",
         "trail_price", "trail_offset",
         "trail_triggered",
+        "profit_ticks", "loss_ticks", "trail_points_ticks",  # Store tick values for later calculation
     )
 
     def __init__(
@@ -92,7 +92,7 @@ class Order:
             order_id: str | None,
             size: float,
             *,
-            order_type: _OrderType = _order_type_normal,
+            order_type: _OrderType,
             exit_id: str | None = None,
             limit: float | None = None,
             stop: float | None = None,
@@ -101,7 +101,10 @@ class Order:
             comment: str | None = None,
             alert_message: str | None = None,
             trail_price: float | None = None,
-            trail_offset: float | None = None
+            trail_offset: float | None = None,
+            profit_ticks: float | None = None,
+            loss_ticks: float | None = None,
+            trail_points_ticks: float | None = None
     ):
         self.order_id = order_id
         self.size = size
@@ -121,6 +124,10 @@ class Order:
         self.trail_price = trail_price
         self.trail_offset = trail_offset or 0  # in ticks
         self.trail_triggered = False
+
+        self.profit_ticks = profit_ticks
+        self.loss_ticks = loss_ticks
+        self.trail_points_ticks = trail_points_ticks
 
     def __repr__(self):
         return f"Order(order_id={self.order_id}; exit_id={self.exit_id}; size={self.size}; type: {self.order_type}; " \
@@ -210,7 +217,8 @@ class Position:
     grossprofit: float | NA[float] = 0.0
     grossloss: float | NA[float] = 0.0
 
-    orders: dict[str, Order]
+    entry_orders: dict[str, Order]
+    exit_orders: dict[str, Order]
 
     open_trades: list[Trade]
     closed_trades: deque[Trade]
@@ -250,7 +258,8 @@ class Position:
     risk_halt_trading: bool = False
 
     def __init__(self):
-        self.orders = {}
+        self.entry_orders = {}  # Entry orders from strategy.entry()
+        self.exit_orders = {}  # Exit orders from strategy.exit(), strategy.close(), etc.
 
         self.open_trades = []
         self.closed_trades = deque(maxlen=9000)  # 9000 is the limit of TV
@@ -276,7 +285,8 @@ class Position:
 
     def reset(self):
         """ Reset position variables """
-        self.orders.clear()
+        self.entry_orders.clear()
+        self.exit_orders.clear()
         self.open_trades.clear()
         self.closed_trades.clear()
         self.closed_trades_count = 0
@@ -459,8 +469,8 @@ class Position:
             self.open_trades = open_trades
             if delete:
                 if order.exit_id is not None:
-                    # Exit orders are stored with "exit_" prefix
-                    self.orders.pop("exit_" + order.exit_id, None)
+                    # Remove from exit_orders dict
+                    self.exit_orders.pop(order.exit_id, None)
 
                 if commission_type == _commission.cash_per_order:
                     # Realize commission
@@ -523,13 +533,11 @@ class Position:
             # Commission summ
             self.open_commission += commission
 
-            # Remove the order using the actual key (which includes the prefix)
-            # The order_id in the Order object doesn't have the prefix,
-            # so we need to find and delete by iterating
-            for key, stored_order in list(self.orders.items()):
-                if stored_order is order:
-                    del self.orders[key]
-                    break
+            # Remove the order from the appropriate dict
+            if order.order_type == _order_type_entry and order.order_id:
+                self.entry_orders.pop(order.order_id, None)
+            elif order.exit_id:
+                self.exit_orders.pop(order.exit_id, None)
 
         # If position has just closed
         if not self.open_trades:
@@ -569,12 +577,14 @@ class Position:
             self._fill_order(order1, price, h, l)
             # Modify the original order to open a position in the new direction
             order.size = new_size
-            assert order.order_id is not None
-            # Store with appropriate prefix based on order type
+            # Store in the appropriate dict based on order type
             if order.order_type == _order_type_entry:
-                self.orders["entry_" + order.order_id] = order
+                assert order.order_id is not None
+                self.entry_orders[order.order_id] = order
             else:
-                self.orders["exit_" + order.order_id] = order
+                # Exit orders use exit_id as the key
+                assert order.exit_id is not None
+                self.exit_orders[order.exit_id] = order
             self._fill_order(order, price, h, l)
             return True
 
@@ -662,8 +672,38 @@ class Position:
         self.drawdown_summ = self.runup_summ = 0.0
         self.new_closed_trades.clear()
 
-        # Process open orders
-        for order in list(self.orders.values()):
+        # Process all orders: entry orders first, then exit orders (guaranteed order with chain)
+        from itertools import chain
+        for order in list(chain(self.entry_orders.values(), self.exit_orders.values())):
+            # For exit orders, calculate limit/stop from entry price if ticks are specified
+            if order.order_type == _order_type_close and order.order_id:
+                # Try to find the trade with matching entry_id
+                entry_price = None
+                for trade in self.open_trades:
+                    if trade.entry_id == order.order_id:
+                        entry_price = trade.entry_price
+                        break
+
+                # If we found the entry price and have tick values, calculate the actual prices
+                if entry_price is not None:
+                    # Determine direction from the order
+                    direction = 1.0 if order.size < 0 else -1.0  # Exit order size is negative of position
+
+                    # Calculate limit from profit_ticks if specified
+                    if order.profit_ticks is not None and order.limit is None:
+                        order.limit = entry_price + direction * syminfo.mintick * order.profit_ticks
+                        order.limit = _price_round(order.limit, direction)
+
+                    # Calculate stop from loss_ticks if specified
+                    if order.loss_ticks is not None and order.stop is None:
+                        order.stop = entry_price - direction * syminfo.mintick * order.loss_ticks
+                        order.stop = _price_round(order.stop, -direction)
+
+                    # Calculate trail_price from trail_points_ticks if specified
+                    if order.trail_points_ticks is not None and order.trail_price is None:
+                        order.trail_price = entry_price + direction * syminfo.mintick * order.trail_points_ticks
+                        order.trail_price = _price_round(order.trail_price, direction)
+
             # Market orders
             if order.limit is None and order.stop is None and order.trail_price is None:
                 # open → high → low → close
@@ -685,7 +725,39 @@ class Position:
                     self._check_low(order)
 
         # 2nd round of process open orders
-        for order in list(self.orders.values()):
+        for order in list(chain(self.entry_orders.values(), self.exit_orders.values())):
+            # For exit orders, calculate limit/stop from entry price if not already done
+            if order.order_type == _order_type_close and order.order_id:
+                # Only recalculate if not already set in first round
+                if ((order.profit_ticks is not None or order.loss_ticks is not None
+                     or order.trail_points_ticks is not None) and order.limit is None and order.stop is None):
+                    # Try to find the trade with matching entry_id
+                    entry_price = None
+                    for trade in self.open_trades:
+                        if trade.entry_id == order.order_id:
+                            entry_price = trade.entry_price
+                            break
+
+                    # If we found the entry price and have tick values, calculate the actual prices
+                    if entry_price is not None:
+                        # Determine direction from the order
+                        direction = 1.0 if order.size < 0 else -1.0  # Exit order size is negative of position
+
+                        # Calculate limit from profit_ticks if specified
+                        if order.profit_ticks is not None and order.limit is None:
+                            order.limit = entry_price + direction * syminfo.mintick * order.profit_ticks
+                            order.limit = _price_round(order.limit, direction)
+
+                        # Calculate stop from loss_ticks if specified
+                        if order.loss_ticks is not None and order.stop is None:
+                            order.stop = entry_price - direction * syminfo.mintick * order.loss_ticks
+                            order.stop = _price_round(order.stop, -direction)
+
+                        # Calculate trail_price from trail_points_ticks if specified
+                        if order.trail_points_ticks is not None and order.trail_price is None:
+                            order.trail_price = entry_price + direction * syminfo.mintick * order.trail_points_ticks
+                            order.trail_price = _price_round(order.trail_price, direction)
+
             # Here all market orders should be gone
             # open → high → low → close
             if ohlc:
@@ -828,12 +900,12 @@ def cancel(id: str):
     # since we don't know which type it is
     # noinspection PyProtectedMember
     try:
-        del lib._script.position.orders["entry_" + id]
+        del lib._script.position.entry_orders[id]
     except KeyError:
         pass
     # noinspection PyProtectedMember
     try:
-        del lib._script.position.orders["exit_" + id]
+        del lib._script.position.exit_orders[id]
     except KeyError:
         pass
 
@@ -847,7 +919,8 @@ def cancel_all():
         return
 
     assert lib._script is not None and lib._script.position is not None
-    lib._script.position.orders.clear()
+    lib._script.position.entry_orders.clear()
+    lib._script.position.exit_orders.clear()
 
 
 # noinspection PyProtectedMember,PyShadowingBuiltins
@@ -892,8 +965,8 @@ def close(id: str, comment: str | NA[str] = NA(str), qty: float | NA[float] = NA
                   comment=None if isinstance(comment, NA) else comment,
                   alert_message=None if isinstance(alert_message, NA) else alert_message)
 
-    # Use "exit_" prefix to avoid ID collision with entry orders
-    position.orders["exit_" + exit_id] = order
+    # Store in exit_orders dict
+    position.exit_orders[exit_id] = order
     if immediately:
         round_to_mintick = lib.math.round_to_mintick
         position.fill_order(order,
@@ -924,8 +997,8 @@ def close_all(comment: str | NA[str] = NA(str), alert_message: str | NA[str] = N
     order = Order(None, -position.size, exit_id=exit_id, order_type=_order_type_close,
                   comment=comment, alert_message=alert_message)
 
-    # Use "exit_" prefix to avoid ID collision with entry orders
-    position.orders["exit_" + exit_id] = order
+    # Store in exit_orders dict
+    position.exit_orders[exit_id] = order
     if immediately:
         round_to_mintick = lib.math.round_to_mintick
         position.fill_order(order,
@@ -1071,8 +1144,8 @@ def entry(id: str, direction: direction.Direction, qty: int | float | NA[float] 
 
     order = Order(id, size, order_type=_order_type_entry, limit=limit, stop=stop, oca_name=oca_name,
                   oca_type=oca_type, comment=comment, alert_message=alert_message)
-    # Use "entry_" prefix to avoid ID collision with exit orders
-    script.position.orders["entry_" + id] = order
+    # Store in entry_orders dict
+    script.position.entry_orders[id] = order
 
 
 # noinspection PyShadowingBuiltins,PyProtectedMember,PyShadowingNames,PyUnusedLocal
@@ -1138,12 +1211,10 @@ def exit(id: str, from_entry: str = "",
         if size == 0.0:
             return
 
-        if isinstance(limit, NA) and not isinstance(profit, NA):
-            limit = lib.close + direction * syminfo.mintick * profit
-        if isinstance(stop, NA) and not isinstance(loss, NA):
-            stop = lib.close - direction * syminfo.mintick * loss
-        if isinstance(trail_price, NA) and not isinstance(trail_points, NA):
-            trail_price = lib.close + direction * syminfo.mintick * trail_points
+        # Store tick values for later calculation when entry price is known
+        profit_ticks = None if isinstance(profit, NA) else profit
+        loss_ticks = None if isinstance(loss, NA) else loss
+        trail_points_ticks = None if isinstance(trail_points, NA) else trail_points
 
         # We need to have limit, stop or both
         if isinstance(limit, NA) and isinstance(stop, NA) and not isinstance(trail_price, NA):
@@ -1156,18 +1227,19 @@ def exit(id: str, from_entry: str = "",
         if not isinstance(trail_price, NA):
             trail_price = _price_round(trail_price, direction)
 
-        # Use "exit_" prefix to avoid ID collision with entry orders
-        position.orders["exit_" + id] = Order(
+        # Store in exit_orders dict
+        position.exit_orders[id] = Order(
             from_entry, size, exit_id=id, order_type=_order_type_close,
             limit=limit, stop=stop,
             trail_price=trail_price, trail_offset=trail_offset,
+            profit_ticks=profit_ticks, loss_ticks=loss_ticks, trail_points_ticks=trail_points_ticks,
             oca_name=oca_name, comment=comment, alert_message=alert_message
         )
 
     # Find direction and size
     if from_entry:
-        # Entry orders are stored with "entry_" prefix
-        entry_order = position.orders.get("entry_" + from_entry, None)
+        # Get from entry_orders dict
+        entry_order = position.entry_orders.get(from_entry, None)
 
         # Find open trade if no entry order found
         if not entry_order:
@@ -1176,7 +1248,6 @@ def exit(id: str, from_entry: str = "",
                     direction = trade.sign
                     size = trade.size
                     _exit()
-
         else:
             direction = entry_order.sign
             size = entry_order.size
@@ -1185,7 +1256,7 @@ def exit(id: str, from_entry: str = "",
     else:
         # If still no entry order found, we should exit all open trades and open orders
         if not direction:
-            for order in list(position.orders.values()):
+            for order in list(position.entry_orders.values()):
                 direction = order.sign
                 size = order.size
                 from_entry = order.order_id
