@@ -40,7 +40,8 @@ def _compile_module(code: str) -> types.ModuleType:
         if mod is not None:
             return mod
         mod = types.ModuleType(f"pynecore_user_{key[:16]}")
-        exec(compile(code, filename=f"<pynecore:{key[:8]}>", mode="exec"), mod.__dict__)
+        mod.__file__ = f"<pynecore:{key[:8]}>"
+        exec(compile(code, filename=mod.__file__, mode="exec"), mod.__dict__)
         _compile_cache[key] = mod
         return mod
 
@@ -86,11 +87,17 @@ def run_inline(
     mod = _compile_module(script_code)
 
     last = ohlcv[-1]
-    ts = int(last["time_unix_ms"])
-    last_close = float(last["close"])
+
+    TF_MS = {
+        "1m": 60_000, "5m": 300_000, "15m": 900_000, "30m": 1_800_000,
+        "1h": 3_600_000, "4h": 14_400_000, "D": 86_400_000, "W": 604_800_000, "M": 2_592_000_000,
+    }[timeframe]
+
+    last_open = int(last["time_unix_ms"])
+    last_close_ts = last_open + TF_MS
 
     sink = _MemorySink()
-    rec = _StrategyCallRecorder(sink=sink, bar_close_ts_ms=ts, last_close_price=last_close)
+    rec = _StrategyCallRecorder(sink=sink, bar_close_ts_ms=last_close_ts, last_close_price=float(last["close"]))
 
     orig_entry = strategy.entry
     orig_close = strategy.close
