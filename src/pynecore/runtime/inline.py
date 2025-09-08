@@ -1,9 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Sequence
-import types
-import hashlib
-import threading
+import hashlib, threading, types, sys, importlib.machinery
 
 from pynecore.lib import strategy, close as s_close, open as s_open, high as s_high, low as s_low, volume as s_volume
 
@@ -39,9 +37,27 @@ def _compile_module(code: str) -> types.ModuleType:
         mod = _compile_cache.get(key)
         if mod is not None:
             return mod
-        mod = types.ModuleType(f"pynecore_user_{key[:16]}")
-        mod.__file__ = f"<pynecore:{key[:8]}>"
-        exec(compile(code, filename=mod.__file__, mode="exec"), mod.__dict__)
+
+        module_name = f"pynecore_user.{key[:16]}"
+        mod = types.ModuleType(module_name)
+
+        virtual_file = f"/virtual/{module_name.replace('.', '/')}.py"
+        mod.__file__ = virtual_file
+        mod.__package__ = "pynecore_user"
+        mod.__spec__ = importlib.machinery.ModuleSpec(module_name, loader=None)
+
+        sys.modules[module_name] = mod
+
+        mod.__dict__.setdefault("__name__", module_name)
+        mod.__dict__.setdefault("__file__", virtual_file)
+        mod.__dict__.setdefault("__package__", "pynecore_user")
+        mod.__dict__.setdefault("__spec__", mod.__spec__)
+
+
+        code_obj = compile(code, filename=virtual_file, mode="exec")
+
+        exec(code_obj, mod.__dict__)
+
         _compile_cache[key] = mod
         return mod
 
