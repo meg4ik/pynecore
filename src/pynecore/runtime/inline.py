@@ -33,30 +33,35 @@ _compile_cache: Dict[str, types.ModuleType] = {}
 
 def _compile_module(code: str) -> types.ModuleType:
     key = hashlib.sha256(code.encode("utf-8")).hexdigest()
+
     with _compile_cache_lock:
         mod = _compile_cache.get(key)
         if mod is not None:
             return mod
 
-        module_name = f"pynecore_user.{key[:16]}"
+        module_name = f"pynecore_user_{key[:16]}"
         mod = types.ModuleType(module_name)
 
-        virtual_file = f"/virtual/{module_name.replace('.', '/')}.py"
+        virtual_file = f"/virtual/{module_name}.py"
         mod.__file__ = virtual_file
-        mod.__package__ = "pynecore_user"
-        mod.__spec__ = importlib.machinery.ModuleSpec(module_name, loader=None)
+        mod.__package__ = None  # не пакет!
+        mod.__spec__ = importlib.machinery.ModuleSpec(
+            name=module_name,
+            loader=None,
+            is_package=False,
+        )
 
         sys.modules[module_name] = mod
 
-        mod.__dict__.setdefault("__name__", module_name)
-        mod.__dict__.setdefault("__file__", virtual_file)
-        mod.__dict__.setdefault("__package__", "pynecore_user")
-        mod.__dict__.setdefault("__spec__", mod.__spec__)
-
+        d = mod.__dict__
+        d.setdefault("__name__", module_name)
+        d.setdefault("__file__", virtual_file)
+        d.setdefault("__package__", None)
+        d.setdefault("__spec__", mod.__spec__)
 
         code_obj = compile(code, filename=virtual_file, mode="exec")
 
-        exec(code_obj, mod.__dict__)
+        exec(code_obj, d)
 
         _compile_cache[key] = mod
         return mod
