@@ -62,7 +62,7 @@ class Provider(metaclass=ABCMeta):
                            f"_{timeframe}.ohlcv")
 
     def __init__(self, *, symbol: str | None = None, timeframe: str | None = None,
-                 ohlv_dir: Path | None = None, config_dir: Path | None = None):
+                 ohlv_dir: Path | None = None, config_dir: Path | None = None, proxies: dict | None = None):
         """
         :param symbol: The symbol to get data for
         :param timeframe: The timeframe to get data for in TradingView fmt
@@ -74,6 +74,7 @@ class Provider(metaclass=ABCMeta):
         self.xchg_timeframe = self.to_exchange_timeframe(timeframe) if timeframe else None
         self.ohlcv_path = self.get_ohlcv_path(symbol, timeframe, ohlv_dir) if ohlv_dir else None
         self.ohlcv_file = OHLCVWriter(self.ohlcv_path) if self.ohlcv_path else None
+        self.proxies = proxies or None  
 
         if not config_dir:  # Default config dir from the parent of the ohlcv_dir
             assert self.ohlcv_path is not None

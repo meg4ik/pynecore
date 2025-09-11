@@ -159,7 +159,7 @@ class CCXTProvider(Provider):
 
     @override
     def __init__(self, *, symbol: str | None = None, timeframe: str | None = None,
-                 ohlv_dir: Path | None = None, config_dir: Path | None = None):
+                 ohlv_dir: Path | None = None, config_dir: Path | None = None, proxies: dict | None = None):
         """
         :param symbol: The symbol to get data for
         :param timeframe: The timeframe to get data for in TradingView fmt
@@ -171,7 +171,7 @@ class CCXTProvider(Provider):
         except ImportError:
             raise ImportError("CCXT is not installed. Please install it using `pip install ccxt`.")
 
-        super().__init__(symbol=symbol, timeframe=timeframe, ohlv_dir=ohlv_dir, config_dir=config_dir)
+        super().__init__(symbol=symbol, timeframe=timeframe, ohlv_dir=ohlv_dir, config_dir=config_dir, proxies=proxies)
 
         # Check symbol fmt
         try:
@@ -210,6 +210,17 @@ class CCXTProvider(Provider):
             'adjustForTimeDifference': True,
             **exchange_config
         })
+
+        if self.proxies:
+            try:
+                self._client.proxies = self.proxies
+            except Exception:
+                pass
+            try:
+                if hasattr(self._client, "session") and getattr(self._client, "session") is not None:
+                    self._client.session.proxies.update(self.proxies)
+            except Exception:
+                pass
 
     @override
     def get_list_of_symbols(self, *args, **kwargs) -> list[str]:

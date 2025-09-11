@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING
 from pathlib import Path
 from enum import Enum
 from datetime import datetime, timedelta, UTC
+from typing import Optional
 
 from typer import Typer, Option, Argument, Exit, secho, colors, confirm
 
@@ -55,6 +56,10 @@ def parse_date_or_days(value: str) -> datetime | str:
             secho(f"Error: Invalid date fmt or days number: {value}", err=True, fg=colors.RED)
             raise Exit(1)
 
+def _proxies_dict(proxy_url: Optional[str]) -> Optional[dict]:
+    if not proxy_url:
+        return None
+    return {"http": proxy_url, "https": proxy_url}
 
 @app_data.command()
 def download(
@@ -79,6 +84,9 @@ def download(
         force_save_info: bool = Option(False, '--force-save-info', '-fi', help="Force save symbol info"),
         truncate: bool = Option(False, '--truncate', '-tr',
                                 help="Truncate file before downloading, all data will be lost"),
+
+        proxy: Optional[str] = Option(None, '--proxy', '-x',
+                                  help="HTTP(S) proxy URL, e.g. http://user:pass@host:port (overrides env)"),
 ):
     """
     Download historical OHLCV data
@@ -88,11 +96,14 @@ def download(
     provider_class = getattr(provider_module, [p for p in dir(provider_module) if p.endswith('Provider')][0])
 
     try:
+        proxy_url = proxy
+        proxies = _proxies_dict(proxy_url)
         # If list_symbols is True, we show the available symbols then exit
+
         if list_symbols:
             with Progress(SpinnerColumn(), TextColumn("{task.description}"), transient=True) as progress:
                 progress.add_task(description="Fetching market data...", total=None)
-                provider_instance: Provider = provider_class(symbol=symbol, config_dir=app_state.config_dir)
+                provider_instance: Provider = provider_class(symbol=symbol, config_dir=app_state.config_dir, proxies=proxies)
                 symbols = provider_instance.get_list_of_symbols()
             with (console := Console()).pager():
                 for s in symbols:
@@ -105,7 +116,7 @@ def download(
 
         # Create provider instance
         provider_instance: Provider = provider_class(symbol=symbol, timeframe=timeframe.value,
-                                                     ohlv_dir=app_state.data_dir)
+                                                     ohlv_dir=app_state.data_dir, proxies=proxies)
 
         # Download symbol info if not exists
         if force_save_info or not provider_instance.is_symbol_info_exists():
