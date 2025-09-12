@@ -29,6 +29,12 @@ _registered_libraries: list[tuple[str, Callable]] = []
 # TypeVar for enum type preservation
 TEnum = TypeVar('TEnum', bound=StrEnum)
 
+import itertools
+_input_id_seq = itertools.count(1)
+
+def _ensure_id(_id: str | None, prefix: str = "input") -> str:
+    return _id if _id else f"{prefix}_{next(_input_id_seq)}"
+
 
 @dataclass(kw_only=True)
 class InputData:
@@ -152,23 +158,19 @@ class Script:
         lines.append("# Input Settings")
 
         # Save inputs
-        for arg_name, input_data in self.inputs.items():
-            lines.append(f"\n[inputs.{arg_name.removesuffix('__global__')}]")
+        for idx, (arg_name, input_data) in enumerate(self.inputs.items(), start=1):
+            name = arg_name or f"input_{idx}"
+            section = name.removesuffix('__global__')
+            lines.append(f"\n[inputs.{section}]")
             lines.append("# Input metadata, cannot be modified")
-
-            # Add all metadata as comments
             for key, value in input_data.__dict__.items():
                 if key == 'id':
                     continue
                 if value is not None:
-                    # We use ':` to not confuse with real values
                     lines.append(f"# {key.rjust(10)}: {_format_value(value)}")
-
             lines.append("# Change here to modify the input value")
-
-            # Add the actual value
-            if input_data.defval is not None and arg_name in old_input_values:
-                lines.append(f"value = {_format_value(old_input_values[arg_name])}")
+            if input_data.defval is not None and name in old_input_values:
+                lines.append(f"value = {_format_value(old_input_values[name])}")
             else:
                 lines.append("#value =")
 
@@ -215,26 +217,28 @@ class Script:
     #
 
     def _decorate(self):
-        # Get the script path from the caller frame
         script_path = Path(sys._getframe(2).f_globals['__file__']).resolve()  # noqa F821
         toml_path = script_path.with_suffix('.toml')
 
-        # Load settings from toml file if exists
+        # Load, если есть
         if toml_path.exists():
             self.load(toml_path)
 
         def decorator(func):
-            # Save inputs to script instance then clear inputs (for next script)
-            self.inputs = inputs.copy()  # type: ignore
+            self.inputs = inputs.copy()
             inputs.clear()
-
-            # Set script attribute to the main function to be able to access script properties
             setattr(func, 'script', self)
 
             if self.script_type in (_script_type.indicator, _script_type.strategy):
-                # Save toml file if not in pytest and not disabled by env var PYNE_SAVE_SCRIPT_TOML = 0
                 if os.environ.get('PYNE_SAVE_SCRIPT_TOML', '1') == '1' and 'pytest' not in sys.modules:
-                    self.save(toml_path)
+                    try:
+                        toml_parent = toml_path.parent
+                        is_virtual = str(script_path).startswith("/virtual/")
+                        if not is_virtual:
+                            toml_parent.mkdir(parents=True, exist_ok=True)
+                            self.save(toml_path)
+                    except Exception:
+                        pass
 
             old_input_values.clear()
             return func
@@ -510,6 +514,7 @@ class _Input:
         :param _id: The unique identifier of the input, it is filled by the InputTransformer
         :return: The input value from toml file or the default
         """
+        _id = _ensure_id(_id)
         input_type = type(defval).__name__.lower()
         if input_type == 'source':
             defval = str(defval)
@@ -549,6 +554,7 @@ class _Input:
         :param _id: The unique identifier of the input, it is filled by the InputTransformer
         :return: The input value from toml file or the default
         """
+        _id = _ensure_id(_id, "int")
         inputs[_id] = InputData(
             id=_id,
             input_type='int',
@@ -585,6 +591,7 @@ class _Input:
         :param _id: The unique identifier of the input, it is filled by the InputTransformer
         :return: The input value from toml file or the default
         """
+        _id = _ensure_id(_id, "bool")
         inputs[_id] = InputData(
             id=_id,
             input_type='bool',
@@ -622,6 +629,7 @@ class _Input:
         :param _id: The unique identifier of the input, it is filled by the InputTransformer
         :return: The input value from toml file or the default
         """
+        _id = _ensure_id(_id, "float")
         inputs[_id] = InputData(
             id=_id,
             input_type='float',
@@ -661,6 +669,7 @@ class _Input:
         :param _id: The unique identifier of the input, it is filled by the InputTransformer
         :return: The input value from toml file or the default
         """
+        _id = _ensure_id(_id, "string")
         inputs[_id] = InputData(
             id=_id,
             input_type='string',
@@ -694,6 +703,7 @@ class _Input:
         :param _id: The unique identifier of the input, it is filled by the InputTransformer
         :return: The input value from toml file or the default
         """
+        _id = _ensure_id(_id, "color")
         inputs[_id] = InputData(
             id=_id,
             input_type='color',
@@ -727,6 +737,7 @@ class _Input:
         :param _id: The unique identifier of the input, it is filled by the InputTransformer
         :return: The input value from toml file or the default
         """
+        _id = _ensure_id(_id, "source")
         defval = str(defval)
         inputs[_id] = InputData(
             id=_id,
@@ -764,6 +775,7 @@ class _Input:
         :param _id: The unique identifier of the input, it is filled by the InputTransformer
         :return: The input value from toml file or the default
         """
+        _id = _ensure_id(_id, "enum")
         inputs[_id] = InputData(
             id=_id,
             input_type='enum',
@@ -778,15 +790,13 @@ class _Input:
         )
         if _id not in old_input_values:
             return defval
-        else:
-            # Convert string value back to the specific enum type
-            value = old_input_values[_id]
-            if isinstance(value, str):
-                try:
-                    return defval.__class__(value)
-                except ValueError:
-                    return defval
-            return defval
+        value = old_input_values[_id]
+        if isinstance(value, str):
+            try:
+                return defval.__class__(value)
+            except ValueError:
+                return defval
+        return defval
 
     int = _int
     bool = _bool
