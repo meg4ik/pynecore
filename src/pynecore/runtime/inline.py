@@ -5,7 +5,25 @@ import hashlib, threading, types, sys, importlib.machinery
 
 from pynecore.lib import strategy
 import pynecore.lib as _lib
-from pynecore.types.series import Series
+
+class _Stream:
+    __slots__ = ("_vals",)
+    def __init__(self) -> None:
+        self._vals: List[float] = []
+
+    def push(self, v: float) -> None:
+        self._vals.append(float(v))
+
+    def __float__(self) -> float:
+        return float(self._vals[-1]) if self._vals else 0.0
+    
+    def __getitem__(self, i: int) -> float:
+        if not isinstance(i, int):
+            raise TypeError("index must be int")
+        idx = len(self._vals) - 1 - i
+        if idx < 0 or idx >= len(self._vals):
+            return 0.0
+        return self._vals[idx]
 
 @dataclass
 class Signal:
@@ -111,18 +129,25 @@ def run_inline(*, script_code: str, ohlcv: Sequence[Dict[str, Any]], timeframe: 
     sink = _MemorySink()
     rec = _StrategyCallRecorder(sink=sink)
 
-    orig_entry = strategy.entry
-    orig_close = strategy.close
+    orig_entry, orig_close = strategy.entry, strategy.close
+    old_close, old_open, old_high, old_low, old_volume = (
+        getattr(_lib, "close", None),
+        getattr(_lib, "open", None),
+        getattr(_lib, "high", None),
+        getattr(_lib, "low", None),
+        getattr(_lib, "volume", None),
+    )
 
-    old_close  = getattr(_lib, "close",  None)
-    old_open   = getattr(_lib, "open",   None)
-    old_high   = getattr(_lib, "high",   None)
-    old_low    = getattr(_lib, "low",    None)
-    old_volume = getattr(_lib, "volume", None)
+    s_open = _Stream()
+    s_high = _Stream()
+    s_low = _Stream()
+    s_close = _Stream()
+    s_volume = _Stream()
 
     try:
-        strategy.entry = rec.entry
-        strategy.close = rec.close
+        strategy.entry, strategy.close = rec.entry, rec.close
+
+        _lib.open, _lib.high, _lib.low, _lib.close, _lib.volume = s_open, s_high, s_low, s_close, s_volume
 
         mod = _compile_module(script_code)
         main = getattr(mod, "main", None)
@@ -130,14 +155,14 @@ def run_inline(*, script_code: str, ohlcv: Sequence[Dict[str, Any]], timeframe: 
             return InlineResult(signals=[], stats={}, equity_curve=[])
 
         for b in ohlcv:
-            _lib.open   = float(b["open"])
-            _lib.high   = float(b["high"])
-            _lib.low    = float(b["low"])
-            _lib.close  = float(b["close"])
-            _lib.volume = float(b["volume"])
+            s_open.push(float(b["open"]))
+            s_high.push(float(b["high"]))
+            s_low.push(float(b["low"]))
+            s_close.push(float(b["close"]))
+            s_volume.push(float(b["volume"]))
 
-            bar_open_ms   = int(b["time_unix_ms"])
-            bar_close_ms  = bar_open_ms + TF_MS
+            bar_open_ms  = int(b["time_unix_ms"])
+            bar_close_ms = bar_open_ms + TF_MS
             rec.set_context(bar_close_ms, float(b["close"]))
 
             main()
@@ -145,11 +170,9 @@ def run_inline(*, script_code: str, ohlcv: Sequence[Dict[str, Any]], timeframe: 
         return InlineResult(signals=sink.signals, stats=sink.stats, equity_curve=sink.equity_curve)
 
     finally:
-        strategy.entry = orig_entry
-        strategy.close = orig_close
-
-        if old_close  is not None:  _lib.close  = old_close
-        if old_open   is not None:  _lib.open   = old_open
-        if old_high   is not None:  _lib.high   = old_high
-        if old_low    is not None:  _lib.low    = old_low
-        if old_volume is not None:  _lib.volume = old_volume
+        strategy.entry, strategy.close = orig_entry, orig_close
+        if old_open is not None: _lib.open = old_open
+        if old_high is not None: _lib.high = old_high
+        if old_low is not None: _lib.low = old_low
+        if old_close is not None: _lib.close = old_close
+        if old_volume is not None: _lib.volume = old_volume
