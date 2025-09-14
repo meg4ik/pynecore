@@ -97,20 +97,11 @@ class _StrategyCallRecorder:
             label=label,
         ))
 
-def run_inline(
-    *,
-    script_code: str,
-    ohlcv: Sequence[Dict[str, Any]],
-    timeframe: str,
-) -> InlineResult:
-
+def run_inline(*, script_code: str, ohlcv: Sequence[Dict[str, Any]], timeframe: str) -> InlineResult:
     if not ohlcv:
         return InlineResult(signals=[], stats={}, equity_curve=[])
 
-    mod = _compile_module(script_code)
-
     last = ohlcv[-1]
-
     TF_MS = {
         "1m": 60_000, "5m": 300_000, "15m": 900_000, "30m": 1_800_000,
         "1h": 3_600_000, "4h": 14_400_000, "D": 86_400_000, "W": 604_800_000, "M": 2_592_000_000,
@@ -122,6 +113,31 @@ def run_inline(
     sink = _MemorySink()
     rec = _StrategyCallRecorder(sink=sink, bar_close_ts_ms=last_close_ts, last_close_price=float(last["close"]))
 
+    closes = [float(b["close"])  for b in ohlcv]
+    opens  = [float(b["open"])   for b in ohlcv]
+    highs  = [float(b["high"])   for b in ohlcv]
+    lows   = [float(b["low"])    for b in ohlcv]
+    vols   = [float(b["volume"]) for b in ohlcv]
+
+    old_close  = getattr(_lib, "close",  None)
+    old_open   = getattr(_lib, "open",   None)
+    old_high   = getattr(_lib, "high",   None)
+    old_low    = getattr(_lib, "low",    None)
+    old_volume = getattr(_lib, "volume", None)
+
+    def _set_or_series(name: str, values):
+        obj = getattr(_lib, name, None)
+        if obj is not None and hasattr(obj, "set"):
+            obj.set(values)
+        else:
+            setattr(_lib, name, Series(values))
+
+    _set_or_series("close",  closes)
+    _set_or_series("open",   opens)
+    _set_or_series("high",   highs)
+    _set_or_series("low",    lows)
+    _set_or_series("volume", vols)
+
     orig_entry = strategy.entry
     orig_close = strategy.close
 
@@ -129,41 +145,7 @@ def run_inline(
         strategy.entry = rec.entry
         strategy.close = rec.close
 
-        closes = [float(b["close"]) for b in ohlcv]
-        opens  = [float(b["open"])  for b in ohlcv]
-        highs  = [float(b["high"])  for b in ohlcv]
-        lows   = [float(b["low"])   for b in ohlcv]
-        vols   = [float(b["volume"]) for b in ohlcv]
-
-        obj = getattr(_lib, "close", None)
-        if obj is not None and hasattr(obj, "set"):
-            obj.set(closes)
-        else:
-            setattr(_lib, "close", Series(closes))
-
-        obj = getattr(_lib, "open", None)
-        if obj is not None and hasattr(obj, "set"):
-            obj.set(opens)
-        else:
-            setattr(_lib, "open", Series(opens))
-
-        obj = getattr(_lib, "high", None)
-        if obj is not None and hasattr(obj, "set"):
-            obj.set(highs)
-        else:
-            setattr(_lib, "high", Series(highs))
-
-        obj = getattr(_lib, "low", None)
-        if obj is not None and hasattr(obj, "set"):
-            obj.set(lows)
-        else:
-            setattr(_lib, "low", Series(lows))
-
-        obj = getattr(_lib, "volume", None)
-        if obj is not None and hasattr(obj, "set"):
-            obj.set(vols)
-        else:
-            setattr(_lib, "volume", Series(vols))
+        mod = _compile_module(script_code)
 
         main = getattr(mod, "main", None)
         if not callable(main):
@@ -180,3 +162,9 @@ def run_inline(
     finally:
         strategy.entry = orig_entry
         strategy.close = orig_close
+
+        setattr(_lib, "close",  old_close)
+        setattr(_lib, "open",   old_open)
+        setattr(_lib, "high",   old_high)
+        setattr(_lib, "low",    old_low)
+        setattr(_lib, "volume", old_volume)
