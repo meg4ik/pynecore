@@ -69,8 +69,12 @@ def _compile_module(code: str) -> types.ModuleType:
         return mod
 
 class _StrategyCallRecorder:
-    def __init__(self, sink: _MemorySink, bar_close_ts_ms: int, last_close_price: Optional[float]):
+    def __init__(self, sink: _MemorySink):
         self.sink = sink
+        self.ts: int | None = None
+        self.last_close: float | None = None
+
+    def set_context(self, bar_close_ts_ms: int, last_close_price: float) -> None:
         self.ts = bar_close_ts_ms
         self.last_close = last_close_price
 
@@ -79,7 +83,7 @@ class _StrategyCallRecorder:
         if qty_type == getattr(strategy, "percent_of_equity", None):
             qty_pct = float(qty_value or 0.0)
         self.sink.signals.append(Signal(
-            time_unix_ms=self.ts,
+            time_unix_ms=int(self.ts or 0),
             side=("long" if side == strategy.long else "short"),
             action="open",
             qty_pct=qty_pct,
@@ -89,7 +93,7 @@ class _StrategyCallRecorder:
 
     def close(self, label: str, **kwargs):
         self.sink.signals.append(Signal(
-            time_unix_ms=self.ts,
+            time_unix_ms=int(self.ts or 0),
             side="long",
             action="close",
             qty_pct=0.0,
@@ -101,23 +105,14 @@ def run_inline(*, script_code: str, ohlcv: Sequence[Dict[str, Any]], timeframe: 
     if not ohlcv:
         return InlineResult(signals=[], stats={}, equity_curve=[])
 
-    last = ohlcv[-1]
-    TF_MS = {
-        "1m": 60_000, "5m": 300_000, "15m": 900_000, "30m": 1_800_000,
-        "1h": 3_600_000, "4h": 14_400_000, "D": 86_400_000, "W": 604_800_000, "M": 2_592_000_000,
-    }[timeframe]
-
-    last_open = int(last["time_unix_ms"])
-    last_close_ts = last_open + TF_MS
+    TF_MS = {"1m": 60000, "5m": 300000, "15m": 900000, "30m": 1800000,
+             "1h": 3600000, "4h": 14400000, "D": 86400000, "W": 604800000, "M": 2592000000}[timeframe]
 
     sink = _MemorySink()
-    rec = _StrategyCallRecorder(sink=sink, bar_close_ts_ms=last_close_ts, last_close_price=float(last["close"]))
+    rec = _StrategyCallRecorder(sink=sink)
 
-    closes = [float(b["close"])  for b in ohlcv]
-    opens  = [float(b["open"])   for b in ohlcv]
-    highs  = [float(b["high"])   for b in ohlcv]
-    lows   = [float(b["low"])    for b in ohlcv]
-    vols   = [float(b["volume"]) for b in ohlcv]
+    orig_entry = strategy.entry
+    orig_close = strategy.close
 
     old_close  = getattr(_lib, "close",  None)
     old_open   = getattr(_lib, "open",   None)
@@ -125,46 +120,36 @@ def run_inline(*, script_code: str, ohlcv: Sequence[Dict[str, Any]], timeframe: 
     old_low    = getattr(_lib, "low",    None)
     old_volume = getattr(_lib, "volume", None)
 
-    def _set_or_series(name: str, values):
-        obj = getattr(_lib, name, None)
-        if obj is not None and hasattr(obj, "set"):
-            obj.set(values)
-        else:
-            setattr(_lib, name, Series(values))
-
-    _set_or_series("close",  closes)
-    _set_or_series("open",   opens)
-    _set_or_series("high",   highs)
-    _set_or_series("low",    lows)
-    _set_or_series("volume", vols)
-
-    orig_entry = strategy.entry
-    orig_close = strategy.close
-
     try:
         strategy.entry = rec.entry
         strategy.close = rec.close
 
         mod = _compile_module(script_code)
-
         main = getattr(mod, "main", None)
         if not callable(main):
             return InlineResult(signals=[], stats={}, equity_curve=[])
 
-        main()
+        for b in ohlcv:
+            _lib.open   = float(b["open"])
+            _lib.high   = float(b["high"])
+            _lib.low    = float(b["low"])
+            _lib.close  = float(b["close"])
+            _lib.volume = float(b["volume"])
 
-        return InlineResult(
-            signals=sink.signals,
-            stats=sink.stats,
-            equity_curve=sink.equity_curve,
-        )
+            bar_open_ms   = int(b["time_unix_ms"])
+            bar_close_ms  = bar_open_ms + TF_MS
+            rec.set_context(bar_close_ms, float(b["close"]))
+
+            main()
+
+        return InlineResult(signals=sink.signals, stats=sink.stats, equity_curve=sink.equity_curve)
 
     finally:
         strategy.entry = orig_entry
         strategy.close = orig_close
 
-        setattr(_lib, "close",  old_close)
-        setattr(_lib, "open",   old_open)
-        setattr(_lib, "high",   old_high)
-        setattr(_lib, "low",    old_low)
-        setattr(_lib, "volume", old_volume)
+        if old_close  is not None:  _lib.close  = old_close
+        if old_open   is not None:  _lib.open   = old_open
+        if old_high   is not None:  _lib.high   = old_high
+        if old_low    is not None:  _lib.low    = old_low
+        if old_volume is not None:  _lib.volume = old_volume
