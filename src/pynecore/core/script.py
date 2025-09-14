@@ -220,7 +220,6 @@ class Script:
         script_path = Path(sys._getframe(2).f_globals['__file__']).resolve()  # noqa F821
         toml_path = script_path.with_suffix('.toml')
 
-        # Load, если есть
         if toml_path.exists():
             self.load(toml_path)
 

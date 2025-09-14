@@ -3,7 +3,9 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Sequence
 import hashlib, threading, types, sys, importlib.machinery
 
-from pynecore.lib import strategy, close as s_close, open as s_open, high as s_high, low as s_low, volume as s_volume
+from pynecore.lib import strategy
+import pynecore.lib as _lib
+from pynecore.types.series import Series
 
 @dataclass
 class Signal:
@@ -44,7 +46,7 @@ def _compile_module(code: str) -> types.ModuleType:
 
         virtual_file = f"/virtual/{module_name}.py"
         mod.__file__ = virtual_file
-        mod.__package__ = None  # не пакет!
+        mod.__package__ = None
         mod.__spec__ = importlib.machinery.ModuleSpec(
             name=module_name,
             loader=None,
@@ -128,16 +130,40 @@ def run_inline(
         strategy.close = rec.close
 
         closes = [float(b["close"]) for b in ohlcv]
-        opens  = [float(b["open"]) for b in ohlcv]
-        highs  = [float(b["high"]) for b in ohlcv]
-        lows   = [float(b["low"])  for b in ohlcv]
+        opens  = [float(b["open"])  for b in ohlcv]
+        highs  = [float(b["high"])  for b in ohlcv]
+        lows   = [float(b["low"])   for b in ohlcv]
         vols   = [float(b["volume"]) for b in ohlcv]
 
-        s_close.set(closes)
-        s_open.set(opens)
-        s_high.set(highs)
-        s_low.set(lows)
-        s_volume.set(vols)
+        obj = getattr(_lib, "close", None)
+        if obj is not None and hasattr(obj, "set"):
+            obj.set(closes)
+        else:
+            setattr(_lib, "close", Series(closes))
+
+        obj = getattr(_lib, "open", None)
+        if obj is not None and hasattr(obj, "set"):
+            obj.set(opens)
+        else:
+            setattr(_lib, "open", Series(opens))
+
+        obj = getattr(_lib, "high", None)
+        if obj is not None and hasattr(obj, "set"):
+            obj.set(highs)
+        else:
+            setattr(_lib, "high", Series(highs))
+
+        obj = getattr(_lib, "low", None)
+        if obj is not None and hasattr(obj, "set"):
+            obj.set(lows)
+        else:
+            setattr(_lib, "low", Series(lows))
+
+        obj = getattr(_lib, "volume", None)
+        if obj is not None and hasattr(obj, "set"):
+            obj.set(vols)
+        else:
+            setattr(_lib, "volume", Series(vols))
 
         main = getattr(mod, "main", None)
         if not callable(main):
