@@ -9,6 +9,10 @@ import math
 
 from pathlib import Path
 
+# Register the import hook BEFORE any pynecore imports
+# This ensures AST transformations work even when __pycache__ is deleted
+from pynecore.core import import_hook  # noqa - This must be first!
+
 from pynecore.types.na import NA
 from pynecore.core.script_runner import ScriptRunner
 from pynecore.types.ohlcv import OHLCV
