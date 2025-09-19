@@ -20,7 +20,11 @@ import mmap
 import os
 import struct
 from collections import Counter
-from collections.abc import Buffer
+try:
+    from collections.abc import Buffer
+except ImportError:
+    # Python < 3.12 compatibility: Buffer was added in 3.12
+    Buffer = bytes  # type: ignore
 from datetime import datetime, time, timedelta, timezone as dt_timezone, UTC
 from io import BufferedWriter, BufferedRandom
 from math import gcd as math_gcd
