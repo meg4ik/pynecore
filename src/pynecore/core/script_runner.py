@@ -166,7 +166,7 @@ class ScriptRunner:
 
     __slots__ = ('script_module', 'script', 'ohlcv_iter', 'syminfo', 'update_syminfo_every_run',
                  'bar_index', 'tz', 'plot_writer', 'strat_writer', 'trades_writer', 'last_bar_index',
-                 'equity_curve', 'first_price', 'last_price')
+                 'equity_curve', 'first_price', 'last_price', 'last_bar_signals')
 
     def __init__(self, script_path: Path, ohlcv_iter: Iterable[OHLCV], syminfo: SymInfo, *,
                  plot_path: Path | None = None, strat_path: Path | None = None,
@@ -242,6 +242,7 @@ class ScriptRunner:
         from ..lib import _parse_timezone, barstate, string
         from pynecore.core import function_isolation
         from . import script
+        from ..runtime import signal_bus
 
         is_strat = self.script.script_type == script_type.strategy
 
@@ -277,6 +278,8 @@ class ScriptRunner:
         # Position shortcut
         position = self.script.position
 
+        self.last_bar_signals = []
+
         try:
             for candle in self.ohlcv_iter:
                 # Update syminfo lib properties if needed, other ScriptRunner instances may have changed them
@@ -297,38 +300,47 @@ class ScriptRunner:
                 # Update last price
                 self.last_price = lib.close  # type: ignore
 
-                # Process limit orders
                 if is_strat and position:
                     position.process_orders()
 
-                # Execute registered library main functions before main script
-                lib._lib_semaphore = True
-                for library_title, main_func in script._registered_libraries:
-                    main_func()
-                lib._lib_semaphore = False
+                cur_signals: list[dict] = []
+                def _sink(action: str, **kw):
+                    cur_signals.append({
+                        "action": action,
+                        **kw,
+                        "time_unix_ms": int(candle.timestamp) * 1000,
+                        "bar_index": self.bar_index,
+                    })
+                signal_bus.set_sink(_sink)
 
-                # Run the script
-                res = self.script_module.main()
+                try:
+                    # Execute registered library main functions before main script
+                    lib._lib_semaphore = True
+                    for library_title, main_func in script._registered_libraries:
+                        main_func()
+                    lib._lib_semaphore = False
+                    res = self.script_module.main()
 
-                # Update plot data with the results
-                if res is not None:
-                    assert isinstance(res, dict), "The 'main' function must return a dictionary!"
-                    lib._plot_data.update(res)
+                    # Update plot data with the results
+                    if res is not None:
+                        assert isinstance(res, dict), "The 'main' function must return a dictionary!"
+                        lib._plot_data.update(res)
 
-                # Write plot data to CSV if we have a writer
-                if self.plot_writer and lib._plot_data:
-                    # Create a new dictionary combining extra_fields (if any) with plot data
-                    extra_fields = {} if candle.extra_fields is None else dict(candle.extra_fields)
-                    extra_fields.update(lib._plot_data)
-                    # Create a new OHLCV instance with updated extra_fields
-                    updated_candle = candle._replace(extra_fields=extra_fields)
-                    self.plot_writer.write_ohlcv(updated_candle)
+                    if self.plot_writer and lib._plot_data:
+                        extra_fields = {} if candle.extra_fields is None else dict(candle.extra_fields)
+                        extra_fields.update(lib._plot_data)
+                        updated_candle = candle._replace(extra_fields=extra_fields)
+                        self.plot_writer.write_ohlcv(updated_candle)
 
-                # Yield plot data to be able to process in a subclass
-                if not is_strat:
-                    yield candle, lib._plot_data
-                elif position:
-                    yield candle, lib._plot_data, position.new_closed_trades
+                    # Yield plot data to be able to process in a subclass
+                    if not is_strat:
+                        yield candle, lib._plot_data
+                    elif position:
+                        yield candle, lib._plot_data, position.new_closed_trades
+
+                finally:
+                    signal_bus.clear_sink()
+                    self.last_bar_signals = cur_signals
 
                 # Save trade data if we have a writer
                 if is_strat and self.trades_writer and position:

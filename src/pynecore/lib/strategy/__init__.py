@@ -19,6 +19,8 @@ from . import oca as _oca
 
 from . import closedtrades, opentrades
 
+from pynecore.runtime import signal_bus
+
 __all__ = [
     "fixed", "cash", "percent_of_equity",
     "long", "short", 'direction',
@@ -1359,6 +1361,9 @@ def close(id: str, comment: str | NA[str] = na_str, qty: float | NA[float] = na_
     :param alert_message: Custom text for the alert that fires when an order fills.
     :param immediately: If true, the closing order executes on the same tick when the strategy places it
     """
+
+    signal_bus.emit("close", id=id)
+
     if lib._lib_semaphore:
         return
 
@@ -1401,6 +1406,9 @@ def close_all(comment: str | NA[str] = na_str, alert_message: str | NA[str] = na
     :param alert_message: Custom text for the alert that fires when an order fills
     :param immediately: If true, the closing order executes on the same tick when the strategy places it
     """
+
+    signal_bus.emit("close_all")
+
     if lib._lib_semaphore:
         return
 
@@ -1446,6 +1454,8 @@ def entry(id: str, direction: direction.Direction, qty: int | float | NA[float] 
     # Risk management: Check if trading is halted
     if position.risk_halt_trading:
         return
+    
+    qty_was_na = isinstance(qty, NA)
 
     # Get default qty by script parameters if no qty is specified
     if isinstance(qty, NA):
@@ -1541,6 +1551,35 @@ def entry(id: str, direction: direction.Direction, qty: int | float | NA[float] 
     # Store in entry_orders dict
     position._add_order(order)
 
+    try:
+        qty_type = "fixed"
+        qty_pct = None
+        if qty_was_na:
+            if script.default_qty_type == percent_of_equity:
+                qty_type = "percent_of_equity"
+                qty_pct = float(script.default_qty_value)  # в %
+            elif script.default_qty_type == cash:
+                qty_type = "cash"
+            else:
+                qty_type = "fixed"
+
+        signal_bus.emit(
+            "entry",
+            id=id,
+            side=("long" if direction_sign > 0 else "short"),
+            size=float(size),
+            qty=float(abs(qty)),
+            qty_type=qty_type,
+            qty_pct=qty_pct,
+            limit=(float(limit) if limit is not None else None),
+            stop=(float(stop) if stop is not None else None),
+            comment=comment,
+            oca_name=oca_name,
+            oca_type=(str(oca_type.value) if oca_type is not None else None),
+        )
+    except Exception:
+        pass
+
 
 # noinspection PyShadowingBuiltins,PyProtectedMember,PyShadowingNames,PyUnusedLocal
 def exit(id: str, from_entry: str = "",
@@ -1581,6 +1620,15 @@ def exit(id: str, from_entry: str = "",
     :param alert_trailing: Custom text for the alert that fires when an order fills
     :param disable_alert: If true, the alert will not fire when the order fills
     """
+
+    signal_bus.emit(
+        "exit",
+        id=id,
+        from_entry=from_entry,
+        profit=(float(profit) if not isinstance(profit, NA) and profit is not None else None),
+        loss=(float(loss) if not isinstance(loss, NA) and loss is not None else None),
+    )
+    
     if lib._lib_semaphore:
         return
 
