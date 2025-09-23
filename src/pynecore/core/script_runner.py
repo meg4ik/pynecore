@@ -4,6 +4,11 @@ import sys
 from pathlib import Path
 from datetime import datetime, UTC
 
+from importlib.util import spec_from_file_location, module_from_spec
+from pathlib import Path
+from types import ModuleType
+import sys, re, uuid
+
 from pynecore.types.ohlcv import OHLCV
 from pynecore.core.syminfo import SymInfo
 from pynecore.core.csv_file import CSVWriter
@@ -24,42 +29,35 @@ __all__ = [
 
 def import_script(script_path: Path) -> ModuleType:
     """
-    Import the script
+    Import the script from an absolute path, require a callable `main`.
     """
-    from importlib import import_module
-    import re
-    # Import hook only before importing the script, to make import hook being used only for Pyne scripts
-    # (this makes 1st run faster, than if it would be a top-level import)
-    from . import import_hook  # noqa
+    from . import import_hook
 
-    # Check for @pyne magic doc comment before importing (prevents import errors)
-    # Without this user may get strange errors which are very hard to debug
+    script_path = Path(script_path)
+
     try:
         with open(script_path, 'r') as f:
-            # Read only the first few lines to check for docstring
-            content = f.read(1024)  # Read first 1KB, should be enough for docstring check
-
-        # Check if file starts with a docstring containing @pyne
-        if not re.search(r'^(""".*?@pyne.*?"""|\'\'\'.*?@pyne.*?\'\'\')',
-                         content, re.DOTALL | re.MULTILINE):
+            content = f.read(1024)
+        if not re.search(r'^(""".*?@pyne.*?"""|\'\'\'.*?@pyne.*?\'\'\')', content, re.DOTALL | re.MULTILINE):
             raise ImportError(
-                f"Script '{script_path}' must have a magic doc comment containing "
-                f"'@pyne' at the beginning of the file!"
+                f"Script '{script_path}' must have a magic doc comment containing '@pyne' at the beginning of the file!"
             )
     except (OSError, IOError) as e:
         raise ImportError(f"Could not read script file '{script_path}': {e}")
 
-    # Add script's directory to Python path temporarily
-    sys.path.insert(0, str(script_path.parent))
-    try:
-        # This will use the import system, including our hook
-        module = import_module(script_path.stem)
-    finally:
-        # Remove the directory from path
-        sys.path.pop(0)
+    mod_name = f"pynecore_user_script_{uuid.uuid4().hex}"
 
-    if not hasattr(module, 'main'):
-        raise ImportError(f"Script '{script_path}' must have a 'main' function to run!")
+    spec = spec_from_file_location(mod_name, script_path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Could not load spec for script '{script_path}'")
+
+    module = module_from_spec(spec)
+    sys.modules[mod_name] = module
+    spec.loader.exec_module(module)
+
+    main = getattr(module, 'main', None)
+    if not callable(main):
+        raise ImportError(f"Script '{script_path}' must have a callable 'main' to run!")
 
     return module
 
