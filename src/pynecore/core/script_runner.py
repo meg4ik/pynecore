@@ -31,9 +31,9 @@ def import_script(script_path: Path) -> ModuleType:
     """
     Import the script from an absolute path, require a callable `main`.
     """
-    from . import import_hook
-
-    script_path = Path(script_path)
+    from importlib import import_module
+    import re
+    from . import import_hook  # noqa
 
     try:
         with open(script_path, 'r') as f:
@@ -45,15 +45,13 @@ def import_script(script_path: Path) -> ModuleType:
     except (OSError, IOError) as e:
         raise ImportError(f"Could not read script file '{script_path}': {e}")
 
-    mod_name = f"pynecore_user_script_{uuid.uuid4().hex}"
+    sys.path.insert(0, str(script_path.parent))
+    try:
+        sys.modules.pop(script_path.stem, None)
 
-    spec = spec_from_file_location(mod_name, script_path)
-    if spec is None or spec.loader is None:
-        raise ImportError(f"Could not load spec for script '{script_path}'")
-
-    module = module_from_spec(spec)
-    sys.modules[mod_name] = module
-    spec.loader.exec_module(module)
+        module = import_module(script_path.stem)
+    finally:
+        sys.path.pop(0)
 
     main = getattr(module, 'main', None)
     if not callable(main):
