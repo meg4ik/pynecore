@@ -1429,6 +1429,7 @@ def close_all(comment: str | NA[str] = na_str, alert_message: str | NA[str] = na
 # noinspection PyProtectedMember,PyShadowingNames,PyShadowingBuiltins
 def entry(id: str, direction: direction.Direction, qty: int | float | NA[float] = na_float,
           qty_percent: float | None = None,
+          when: bool | None = None,
           limit: int | float | None = None, stop: int | float | None = None,
           oca_name: str | None = None, oca_type: _oca.Oca | None = None,
           comment: str | None = None, alert_message: str | None = None):
@@ -1451,6 +1452,9 @@ def entry(id: str, direction: direction.Direction, qty: int | float | NA[float] 
 
     script = lib._script
     position = script.position
+
+    if when is not None and not bool(when):
+        return
 
     # Risk management: Check if trading is halted
     if position.risk_halt_trading:
