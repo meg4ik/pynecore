@@ -1428,6 +1428,7 @@ def close_all(comment: str | NA[str] = na_str, alert_message: str | NA[str] = na
 
 # noinspection PyProtectedMember,PyShadowingNames,PyShadowingBuiltins
 def entry(id: str, direction: direction.Direction, qty: int | float | NA[float] = na_float,
+          qty_percent: float | None = None,
           limit: int | float | None = None, stop: int | float | None = None,
           oca_name: str | None = None, oca_type: _oca.Oca | None = None,
           comment: str | None = None, alert_message: str | None = None):
@@ -1457,52 +1458,44 @@ def entry(id: str, direction: direction.Direction, qty: int | float | NA[float] 
     
     qty_was_na = isinstance(qty, NA)
 
-    # Get default qty by script parameters if no qty is specified
+    if isinstance(qty, NA) and qty_percent is not None:
+        pct = max(0.0, float(qty_percent)) * 0.01
+        target_investment = position.equity * pct
+
+        # Учёт комиссии как в твоём коде для percent_of_equity
+        if script.commission_type == _commission.percent:
+            commission_multiplier = 1.0 + script.commission_value * 0.01
+            qty = target_investment / (position.c * syminfo.pointvalue * commission_multiplier)
+        elif script.commission_type == _commission.cash_per_contract:
+            qty = target_investment / (position.c * syminfo.pointvalue + script.commission_value)
+        elif script.commission_type == _commission.cash_per_order:
+            qty = (target_investment - script.commission_value) / (position.c * syminfo.pointvalue)
+            qty = max(0.0, qty)
+        else:
+            qty = target_investment / (position.c * syminfo.pointvalue)
+
     if isinstance(qty, NA):
         default_qty_type = script.default_qty_type
         if default_qty_type == fixed:
             qty = script.default_qty_value
-
         elif default_qty_type == percent_of_equity:
             default_qty_value = script.default_qty_value
-            # TradingView calculates position size so that the total investment
-            # (position value + commission) equals the specified percentage of equity
-            #
-            # For percent commission: total_cost = qty * price * (1 + commission_rate)
-            # For cash per contract: total_cost = qty * price + qty * commission_value
-            #
-            # We want: total_cost = equity * percent
-            # So: qty = (equity * percent) / (price * (1 + commission_factor))
-
             equity_percent = default_qty_value * 0.01
             target_investment = script.position.equity * equity_percent
-
-            # Calculate the commission factor based on commission type
             if script.commission_type == _commission.percent:
-                # For percentage commission: qty * price * (1 + commission%)
                 commission_multiplier = 1.0 + script.commission_value * 0.01
                 qty = target_investment / (position.c * syminfo.pointvalue * commission_multiplier)
-
             elif script.commission_type == _commission.cash_per_contract:
-                # For cash per contract: qty * price + qty * commission_value
-                # qty * (price + commission_value) = target_investment
                 price_plus_commission = position.c * syminfo.pointvalue + script.commission_value
                 qty = target_investment / price_plus_commission
-
             elif script.commission_type == _commission.cash_per_order:
-                # For cash per order: qty * price + commission_value = target_investment
-                # qty = (target_investment - commission_value) / price
                 qty = (target_investment - script.commission_value) / (position.c * syminfo.pointvalue)
-                qty = max(0.0, qty)  # Ensure non-negative
-
+                qty = max(0.0, qty)
             else:
-                # No commission
                 qty = target_investment / (position.c * syminfo.pointvalue)
-
         elif default_qty_type == cash:
             default_qty_value = script.default_qty_value
             qty = default_qty_value / (position.c * syminfo.pointvalue)
-
         else:
             raise ValueError("Unknown default qty type: ", default_qty_type)
 
